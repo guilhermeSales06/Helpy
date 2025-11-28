@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 import tkinter.ttk as ttk
 from classes import *
+from database import DatabaseManager 
 
 class AppSuporte(tk.Tk):
     def __init__(self):
@@ -9,22 +10,28 @@ class AppSuporte(tk.Tk):
         self.title("Sistema de Central de Suporte")
         self.geometry("800x600")
         
-        self.central = CentralDeSuporte()
-        self.admin = Administrador(1, "ROlt", "rolt@suporte.com", "1234")
-        self.central.adicionar_usuario(self.admin)
+        self.db_manager = DatabaseManager()
         
-        self.cliente1 = self.admin.cadastrar_cliente("rafael", "rafael@email.com", "abcd", "11999999999")
-        self.tecnico1 = self.admin.cadastrar_tecnico("guilherme", "guilherme@tech.com", "4321", "Hardware")
-        self.central.adicionar_usuario(self.cliente1)
-        self.central.adicionar_usuario(self.tecnico1)
-        self.cliente1.abrir_chamado(self.central, "Computador não liga", "Alta")
+        self.central = CentralDeSuporte(self.db_manager)
+        
+        self.admin = self.db_manager.get_usuario_by_email("rolt@suporte.com")
+        
+        if not self.db_manager.get_usuario_by_email("rafael@email.com"):
+            self.admin.cadastrar_cliente(self.db_manager, "rafael", "rafael@email.com", "abcd", "11999999999")
+        if not self.db_manager.get_usuario_by_email("guilherme@tech.com"):
+            self.admin.cadastrar_tecnico(self.db_manager, "guilherme", "guilherme@tech.com", "4321", "Hardware")
+        
+        if not self.central.listar_chamados():
+            cliente_teste = self.db_manager.get_usuario_by_email("rafael@email.com")
+            if cliente_teste:
+                cliente_teste.abrir_chamado(self.db_manager, "Computador não liga", "Alta")
         
         self.usuario_logado = None
-        
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
         
         self.frames = {}
+        
         
         for F in (TelaLogin, TelaAdmin, TelaCliente, TelaTecnico):
             page_name = F.__name__
@@ -35,6 +42,7 @@ class AppSuporte(tk.Tk):
         self.show_frame("TelaLogin")
 
     def show_frame(self, page_name):
+        
         frame = self.frames[page_name]
         if page_name == "TelaAdmin":
             frame.update_chamados_list()
@@ -46,24 +54,29 @@ class AppSuporte(tk.Tk):
         frame.tkraise()
         
     def fazer_login(self, email, senha):
-        for usuario in self.central.listar_usuarios():
-            if usuario.autenticar(email, senha):
-                self.usuario_logado = usuario
-                if isinstance(usuario, Administrador):
-                    self.show_frame("TelaAdmin")
-                elif isinstance(usuario, Cliente):
-                    self.show_frame("TelaCliente")
-                elif isinstance(usuario, Tecnico):
-                    self.show_frame("TelaTecnico")
-                return True
+        # Busca o usuário no banco de dados
+        usuario = self.db_manager.get_usuario_by_email(email)
+        
+        if usuario and usuario.autenticar(email, senha):
+            self.usuario_logado = usuario
+            if isinstance(usuario, Administrador):
+                self.show_frame("TelaAdmin")
+            elif isinstance(usuario, Cliente):
+                self.show_frame("TelaCliente")
+            elif isinstance(usuario, Tecnico):
+                self.show_frame("TelaTecnico")
+            return True
         messagebox.showerror("Erro de Login", "Email ou senha inválidos.")
         return False
 
     def fazer_logout(self):
         self.usuario_logado = None
         self.show_frame("TelaLogin")
+        
+    def destroy(self):
+        self.db_manager.close()
+        super().destroy()
 
-# --- Telas ---
 
 class TelaLogin(tk.Frame):
     def __init__(self, parent, controller):
@@ -72,16 +85,20 @@ class TelaLogin(tk.Frame):
         
         tk.Label(self, text="Login", font=("Arial", 24)).pack(pady=10)
         
+        
         tk.Label(self, text="Email:").pack(pady=5)
         self.email_entry = tk.Entry(self, width=30)
         self.email_entry.pack(pady=5)
+        
         
         tk.Label(self, text="Senha:").pack(pady=5)
         self.senha_entry = tk.Entry(self, width=30, show="*")
         self.senha_entry.pack(pady=5)
         
+        
         tk.Button(self, text="Entrar", command=self.login).pack(pady=10)
         
+        # Dados de teste para facilitar
         tk.Label(self, text="Dados de Teste:").pack(pady=10)
         tk.Label(self, text="Admin: rolt@suporte.com / 1234").pack()
         tk.Label(self, text="Cliente: rafael@email.com / abcd").pack()
@@ -109,6 +126,7 @@ class TelaAdmin(tk.Frame):
         self.aba_usuarios = tk.Frame(self.notebook)
         self.notebook.add(self.aba_usuarios, text="Gerenciar Usuários")
         self.setup_aba_usuarios()
+        
         
         tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
 
@@ -139,7 +157,7 @@ class TelaAdmin(tk.Frame):
             tecnico_nome = chamado.get_tecnico().get_nome() if chamado.get_tecnico() else "Nenhum"
             self.chamados_listbox.insert(tk.END, f"ID: {chamado.get_id()} | Cliente: {chamado.get_cliente().get_nome()} | Descrição: {chamado.get_descricao()[:30]}... | Prioridade: {chamado.get_prioridade()} | Técnico: {tecnico_nome}")
             
-        tecnicos = [u for u in self.controller.central.listar_usuarios() if isinstance(u, Tecnico)]
+        tecnicos = self.controller.db_manager.get_all_tecnicos()
         self.tecnicos_map = {t.get_nome(): t for t in tecnicos}
         self.tecnicos_dropdown['values'] = list(self.tecnicos_map.keys())
         if self.tecnicos_map:
@@ -162,17 +180,21 @@ class TelaAdmin(tk.Frame):
         tecnico = self.tecnicos_map.get(tecnico_nome)
         
         if tecnico:
-            self.controller.admin.designar_tecnico(self.chamado_selecionado, tecnico)
-            messagebox.showinfo("Sucesso", f"Técnico {tecnico_nome} designado para o Chamado ID: {self.chamado_selecionado.get_id()}")
-            self.update_chamados_list()
-            if "TelaTecnico" in self.controller.frames:
-                self.controller.frames["TelaTecnico"].update_chamados_list()
+            if self.controller.admin.designar_tecnico(self.controller.db_manager, self.chamado_selecionado, tecnico):
+                messagebox.showinfo("Sucesso", f"Técnico {tecnico_nome} designado para o Chamado ID: {self.chamado_selecionado.get_id()}")
+                self.update_chamados_list()
+          
+                if "TelaTecnico" in self.controller.frames:
+                    self.controller.frames["TelaTecnico"].update_chamados_list()
+            else:
+                messagebox.showerror("Erro", "Não foi possível designar o técnico.")
         else:
             messagebox.showerror("Erro", "Técnico não encontrado.")
 
     def setup_aba_usuarios(self):
         tk.Label(self.aba_usuarios, text="Cadastrar Novo Usuário", font=("Arial", 16)).pack(pady=5)
         
+      
         cadastro_frame = tk.Frame(self.aba_usuarios)
         cadastro_frame.pack(pady=10)
         
@@ -229,22 +251,20 @@ class TelaAdmin(tk.Frame):
         if tipo == "Cliente":
             telefone = self.telefone_entry.get()
             if nome and email and senha and telefone:
-                novo_usuario = self.controller.admin.cadastrar_cliente(nome, email, senha, telefone)
+                novo_usuario = self.controller.admin.cadastrar_cliente(self.controller.db_manager, nome, email, senha, telefone)
             else:
                 messagebox.showwarning("Aviso", "Preencha todos os campos para Cliente.")
                 return
         elif tipo == "Técnico":
             especialidade = self.especialidade_entry.get()
             if nome and email and senha and especialidade:
-                novo_usuario = self.controller.admin.cadastrar_tecnico(nome, email, senha, especialidade)
+                novo_usuario = self.controller.admin.cadastrar_tecnico(self.controller.db_manager, nome, email, senha, especialidade)
             else:
                 messagebox.showwarning("Aviso", "Preencha todos os campos para Técnico.")
                 return
                 
         if novo_usuario:
-            self.controller.central.adicionar_usuario(novo_usuario)
             messagebox.showinfo("Sucesso", f"{tipo} {nome} cadastrado com sucesso!")
-            # Limpar campos
             self.nome_entry.delete(0, tk.END)
             self.email_entry.delete(0, tk.END)
             self.senha_entry.delete(0, tk.END)
@@ -254,6 +274,8 @@ class TelaAdmin(tk.Frame):
                 self.especialidade_entry.delete(0, tk.END)
             
             self.controller.frames["TelaAdmin"].update_chamados_list()
+        else:
+            messagebox.showerror("Erro", "Não foi possível cadastrar o usuário. O email pode já estar em uso.")
 
 class TelaCliente(tk.Frame):
     def __init__(self, parent, controller):
@@ -269,11 +291,11 @@ class TelaCliente(tk.Frame):
         self.notebook.add(self.aba_abrir, text="Abrir Chamado")
         self.setup_aba_abrir()
         
+        # Aba de Meus Chamados
         self.aba_meus = tk.Frame(self.notebook)
         self.notebook.add(self.aba_meus, text="Meus Chamados")
         self.setup_aba_meus()
-        
-        # Botão de Logout
+    
         tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
         
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
@@ -307,15 +329,18 @@ class TelaCliente(tk.Frame):
             return
             
         cliente = self.controller.usuario_logado
-        novo_chamado = cliente.abrir_chamado(self.controller.central, descricao, prioridade)
+        novo_chamado = cliente.abrir_chamado(self.controller.db_manager, descricao, prioridade)
         
-        messagebox.showinfo("Sucesso", f"Chamado ID: {novo_chamado.get_id()} aberto com sucesso!")
-        self.descricao_text.delete("1.0", tk.END)
-        self.prioridade_var.set("Normal")
-        
-        self.update_meus_chamados_list()
-        if "TelaAdmin" in self.controller.frames:
-            self.controller.frames["TelaAdmin"].update_chamados_list()
+        if novo_chamado:
+            messagebox.showinfo("Sucesso", f"Chamado ID: {novo_chamado.get_id()} aberto com sucesso!")
+            self.descricao_text.delete("1.0", tk.END)
+            self.prioridade_var.set("Normal")
+            
+            self.update_meus_chamados_list
+            if "TelaAdmin" in self.controller.frames:
+                self.controller.frames["TelaAdmin"].update_chamados_list()
+        else:
+            messagebox.showerror("Erro", "Não foi possível abrir o chamado.")
         
     def setup_aba_meus(self):
         tk.Label(self.aba_meus, text="Meus Chamados", font=("Arial", 16)).pack(pady=5)
@@ -329,7 +354,7 @@ class TelaCliente(tk.Frame):
     def update_meus_chamados_list(self):
         self.meus_chamados_listbox.delete(0, tk.END)
         if self.controller.usuario_logado and isinstance(self.controller.usuario_logado, Cliente):
-            self.chamados_cliente = self.controller.usuario_logado.listar_chamados()
+            self.chamados_cliente = self.controller.usuario_logado.listar_chamados(self.controller.db_manager)
             for chamado in self.chamados_cliente:
                 tecnico_nome = chamado.get_tecnico().get_nome() if chamado.get_tecnico() else "Nenhum"
                 self.meus_chamados_listbox.insert(tk.END, f"ID: {chamado.get_id()} | Status: {chamado.get_status()} | Descrição: {chamado.get_descricao()[:30]}... | Técnico: {tecnico_nome}")
@@ -354,7 +379,6 @@ class TelaTecnico(tk.Frame):
         self.chamados_listbox = tk.Listbox(self, width=100, height=15)
         self.chamados_listbox.pack(padx=10, pady=5)
         self.chamados_listbox.bind('<<ListboxSelect>>', self.selecionar_chamado)
-        
         status_frame = tk.Frame(self)
         status_frame.pack(pady=10)
         
@@ -366,9 +390,7 @@ class TelaTecnico(tk.Frame):
         self.status_dropdown.pack(side="left", padx=5)
         
         tk.Button(status_frame, text="Atualizar Status", command=self.atualizar_status).pack(side="left", padx=5)
-        
         tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
-        
         self.bind('<Visibility>', self.on_show)
 
     def on_show(self, event):
@@ -381,10 +403,10 @@ class TelaTecnico(tk.Frame):
         tecnico_logado = self.controller.usuario_logado
         
         if tecnico_logado and isinstance(tecnico_logado, Tecnico):
-            for chamado in self.controller.central.listar_chamados():
-                if chamado.get_tecnico() == tecnico_logado:
-                    self.chamados_designados.append(chamado)
-                    self.chamados_listbox.insert(tk.END, f"ID: {chamado.get_id()} | Status: {chamado.get_status()} | Cliente: {chamado.get_cliente().get_nome()} | Descrição: {chamado.get_descricao()[:30]}...")
+            self.chamados_designados = self.controller.db_manager.get_chamados_by_tecnico(tecnico_logado.get_id())
+            
+            for chamado in self.chamados_designados:
+                self.chamados_listbox.insert(tk.END, f"ID: {chamado.get_id()} | Status: {chamado.get_status()} | Cliente: {chamado.get_cliente().get_nome()} | Descrição: {chamado.get_descricao()[:30]}...")
 
     def selecionar_chamado(self, event):
         try:
@@ -402,7 +424,7 @@ class TelaTecnico(tk.Frame):
         novo_status = self.status_var.get()
         tecnico = self.controller.usuario_logado
         
-        if tecnico.alterar_status(self.chamado_selecionado, novo_status):
+        if tecnico.alterar_status(self.controller.db_manager, self.chamado_selecionado, novo_status):
             messagebox.showinfo("Sucesso", f"Status do Chamado ID: {self.chamado_selecionado.get_id()} atualizado para '{novo_status}'.")
             self.update_chamados_list()
             if "TelaAdmin" in self.controller.frames:
