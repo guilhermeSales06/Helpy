@@ -33,7 +33,6 @@ class DatabaseManager:
         return self.cursor.fetchall()
 
     def create_tables(self):
-        # Tabela de Usuários (Base)
         self.execute_query("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,7 +114,7 @@ class DatabaseManager:
             telefone = client_data[0] if client_data else None
             return Cliente(telefone, nome, email, senha, user_id)
         
-        return Usuario(nome, email, senha, user_id) # Caso base, embora os tipos sejam mais específicos
+        return Usuario(nome, email, senha, user_id)
 
     def get_usuario_by_id(self, user_id):
         user_data = self.fetch_one("SELECT id, nome, email, senha, tipo FROM usuarios WHERE id = ?", (user_id,))
