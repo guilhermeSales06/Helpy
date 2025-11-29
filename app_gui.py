@@ -2,13 +2,28 @@ import tkinter as tk
 from tkinter import messagebox
 import tkinter.ttk as ttk
 from classes import *
-from database import DatabaseManager 
+from database import DatabaseManager
 
 class AppSuporte(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Sistema de Central de Suporte")
-        self.geometry("800x600")
+        self.geometry("1100x750")
+        self.resizable(False, False)
+        
+        # Definir tema visual
+        self.configure(bg="#f5f7fa")
+        
+        # Configurar cores do ttk
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TNotebook', background="#f5f7fa", borderwidth=0)
+        style.configure('TNotebook.Tab', padding=[40, 15], background="#e8ecf1", font=('Segoe UI', 9, 'bold'))
+        style.configure('TFrame', background="#f5f7fa")
+        style.map('TNotebook.Tab',
+                  background=[('selected', '#3498db')],
+                  foreground=[('selected', 'white')],
+                  relief=[('selected', 'flat')])
         
         self.db_manager = DatabaseManager()
         
@@ -80,29 +95,69 @@ class AppSuporte(tk.Tk):
 
 class TelaLogin(tk.Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, bg="#f5f7fa")
         self.controller = controller
         
-        tk.Label(self, text="Login", font=("Arial", 24)).pack(pady=10)
+        # Container centralizado
+        main_container = tk.Frame(self, bg="#f5f7fa")
+        main_container.place(relx=0.5, rely=0.5, anchor="center")
         
+        # Título
+        title_label = tk.Label(main_container, text="🎯 Sistema de Suporte", 
+                              font=("Segoe UI", 36, "bold"), bg="#f5f7fa", fg="#1a1a1a")
+        title_label.pack(pady=(0, 5), anchor="center")
         
-        tk.Label(self, text="Email:").pack(pady=5)
-        self.email_entry = tk.Entry(self, width=30)
-        self.email_entry.pack(pady=5)
+        subtitle_label = tk.Label(main_container, text="Central de Atendimento Inteligente", 
+                                 font=("Segoe UI", 13), bg="#f5f7fa", fg="#666")
+        subtitle_label.pack(pady=(0, 35), anchor="center")
         
+        # Frame de login com sombra
+        shadow_frame = tk.Frame(main_container, bg="#d0d5dd", highlightthickness=0)
+        shadow_frame.pack(padx=6, pady=6)
         
-        tk.Label(self, text="Senha:").pack(pady=5)
-        self.senha_entry = tk.Entry(self, width=30, show="*")
-        self.senha_entry.pack(pady=5)
+        login_frame = tk.Frame(shadow_frame, bg="white", relief="flat", highlightthickness=0)
+        login_frame.pack(padx=2, pady=2)
         
+        # Email
+        tk.Label(login_frame, text="📧 Email", font=("Segoe UI", 10, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(18, 8), padx=20, anchor="w")
+        self.email_entry = tk.Entry(login_frame, width=35, font=("Segoe UI", 10), 
+                                    relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.email_entry.pack(pady=(0, 15), padx=20, ipady=8)
         
-        tk.Button(self, text="Entrar", command=self.login).pack(pady=10)
+        # Senha
+        tk.Label(login_frame, text="🔐 Senha", font=("Segoe UI", 10, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 8), padx=20, anchor="w")
+        self.senha_entry = tk.Entry(login_frame, width=35, font=("Segoe UI", 10), 
+                                   show="•", relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.senha_entry.pack(pady=(0, 25), padx=20, ipady=8)
         
-        # Dados de teste para facilitar
-        tk.Label(self, text="Dados de Teste:").pack(pady=10)
-        tk.Label(self, text="Admin: rolt@suporte.com / 1234").pack()
-        tk.Label(self, text="Cliente: rafael@email.com / abcd").pack()
-        tk.Label(self, text="Técnico: guilherme@tech.com / 4321").pack()
+        # Botão de login
+        login_button = tk.Button(login_frame, text="→ Entrar", command=self.login,
+                                font=("Segoe UI", 11, "bold"), bg="#3498db", 
+                                fg="white", relief="flat", padx=50, pady=10,
+                                cursor="hand2", activebackground="#2980b9", highlightthickness=0, bd=0)
+        login_button.pack(pady=(0, 20), padx=20, fill="x")
+        
+        # Dados de teste
+        test_frame = tk.Frame(main_container, bg="white", relief="flat", highlightthickness=0)
+        test_frame.pack(padx=30, pady=(25, 0), fill="x")
+        
+        test_label = tk.Label(test_frame, text="📋 Dados de Teste", 
+                             font=("Segoe UI", 9, "bold"), bg="white", fg="#1a1a1a")
+        test_label.pack(pady=(12, 10), anchor="w", padx=15)
+        
+        test_data = [
+            "👤 Admin: rolt@suporte.com / 1234",
+            "👥 Cliente: rafael@email.com / abcd",
+            "🔧 Técnico: guilherme@tech.com / 4321"
+        ]
+        
+        for data in test_data:
+            tk.Label(test_frame, text=data, font=("Segoe UI", 8), 
+                    bg="white", fg="#888").pack(anchor="w", padx=15, pady=2)
+        
+        tk.Label(test_frame, text="", bg="white").pack(pady=8)
 
     def login(self):
         email = self.email_entry.get()
@@ -111,42 +166,78 @@ class TelaLogin(tk.Frame):
         
 class TelaAdmin(tk.Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, bg="#f5f7fa")
         self.controller = controller
         
-        tk.Label(self, text="Área do Administrador", font=("Arial", 24)).pack(pady=10)
+        # Header
+        header_frame = tk.Frame(self, bg="#1a3a52", height=85, highlightthickness=0)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
         
+        tk.Label(header_frame, text="⚙️ Administrador", font=("Segoe UI", 26, "bold"), 
+                bg="#1a3a52", fg="white").pack(pady=15)
+        
+        # Notebook
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(expand=True, fill="both", padx=10, pady=10)
+        self.notebook.pack(expand=True, fill="both", padx=15, pady=15)
         
-        self.aba_chamados = tk.Frame(self.notebook)
-        self.notebook.add(self.aba_chamados, text="Gerenciar Chamados")
+        self.aba_chamados = tk.Frame(self.notebook, bg="white")
+        self.notebook.add(self.aba_chamados, text="📋 Chamados")
         self.setup_aba_chamados()
         
-        self.aba_usuarios = tk.Frame(self.notebook)
-        self.notebook.add(self.aba_usuarios, text="Gerenciar Usuários")
+        self.aba_usuarios = tk.Frame(self.notebook, bg="white")
+        self.notebook.add(self.aba_usuarios, text="👥 Usuários")
         self.setup_aba_usuarios()
         
+        # Footer com botão sair
+        footer_frame = tk.Frame(self, bg="#f5f7fa", highlightthickness=0)
+        footer_frame.pack(fill="x", pady=12)
         
-        tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
+        logout_button = tk.Button(footer_frame, text="← Sair", command=controller.fazer_logout,
+                                 font=("Segoe UI", 10, "bold"), bg="#e74c3c", fg="white",
+                                 relief="flat", padx=35, pady=8, cursor="hand2",
+                                 activebackground="#c0392b", highlightthickness=0, bd=0)
+        logout_button.pack(anchor="center")
 
     def setup_aba_chamados(self):
-        tk.Label(self.aba_chamados, text="Chamados Abertos", font=("Arial", 16)).pack(pady=5)
+        # Container centralizado
+        container = tk.Frame(self.aba_chamados, bg="white", highlightthickness=0)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
         
-        self.chamados_listbox = tk.Listbox(self.aba_chamados, width=100, height=15)
-        self.chamados_listbox.pack(padx=10, pady=5)
+        tk.Label(container, text="📌 Chamados Abertos", font=("Segoe UI", 13, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 12), anchor="w")
+        
+        # Listbox com scrollbar
+        scrollbar_frame = tk.Frame(container, bg="white", highlightthickness=0)
+        scrollbar_frame.pack(fill="both", expand=True, pady=(0, 15))
+        
+        scrollbar = tk.Scrollbar(scrollbar_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        self.chamados_listbox = tk.Listbox(scrollbar_frame, width=130, height=11,
+                                          font=("Segoe UI", 8), yscrollcommand=scrollbar.set,
+                                          relief="flat", borderwidth=1, bg="#f8f9fa", fg="#1a1a1a",
+                                          selectbackground="#3498db", selectforeground="white", highlightthickness=0)
+        self.chamados_listbox.pack(fill="both", expand=True)
+        scrollbar.config(command=self.chamados_listbox.yview)
         self.chamados_listbox.bind('<<ListboxSelect>>', self.selecionar_chamado)
         
-        designar_frame = tk.Frame(self.aba_chamados)
-        designar_frame.pack(pady=10)
+        # Frame de designação
+        designar_frame = tk.Frame(container, bg="white", highlightthickness=0)
+        designar_frame.pack(pady=12, anchor="center")
         
-        tk.Label(designar_frame, text="Designar Técnico:").pack(side="left", padx=5)
+        tk.Label(designar_frame, text="🎯 Designar Técnico:", font=("Segoe UI", 10, "bold"), 
+                bg="white", fg="#1a1a1a").pack(side="left", padx=8)
         
         self.tecnicos_var = tk.StringVar(designar_frame)
-        self.tecnicos_dropdown = ttk.Combobox(designar_frame, textvariable=self.tecnicos_var, state="readonly")
-        self.tecnicos_dropdown.pack(side="left", padx=5)
+        self.tecnicos_dropdown = ttk.Combobox(designar_frame, textvariable=self.tecnicos_var, 
+                                             state="readonly", width=22, font=("Segoe UI", 9))
+        self.tecnicos_dropdown.pack(side="left", padx=8)
         
-        tk.Button(designar_frame, text="Designar", command=self.designar_tecnico).pack(side="left", padx=5)
+        designar_button = tk.Button(designar_frame, text="✓ Designar", command=self.designar_tecnico,
+                                   font=("Segoe UI", 9, "bold"), bg="#27ae60", fg="white",
+                                   relief="flat", padx=18, cursor="hand2", activebackground="#229954", highlightthickness=0, bd=0)
+        designar_button.pack(side="left", padx=8)
         
         self.update_chamados_list()
         
@@ -192,34 +283,54 @@ class TelaAdmin(tk.Frame):
             messagebox.showerror("Erro", "Técnico não encontrado.")
 
     def setup_aba_usuarios(self):
-        tk.Label(self.aba_usuarios, text="Cadastrar Novo Usuário", font=("Arial", 16)).pack(pady=5)
+        container = tk.Frame(self.aba_usuarios, bg="white", highlightthickness=0)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
         
-      
-        cadastro_frame = tk.Frame(self.aba_usuarios)
-        cadastro_frame.pack(pady=10)
+        tk.Label(container, text="➕ Cadastrar Novo Usuário", font=("Segoe UI", 13, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 18), anchor="w")
         
-        tk.Label(cadastro_frame, text="Nome:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.nome_entry = tk.Entry(cadastro_frame, width=30)
-        self.nome_entry.grid(row=0, column=1, padx=5, pady=5)
+        # Frame de cadastro
+        cadastro_frame = tk.Frame(container, bg="white", highlightthickness=0)
+        cadastro_frame.pack(pady=0, anchor="center")
         
-        tk.Label(cadastro_frame, text="Email:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.email_entry = tk.Entry(cadastro_frame, width=30)
-        self.email_entry.grid(row=1, column=1, padx=5, pady=5)
+        tk.Label(cadastro_frame, text="Nome:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        self.nome_entry = tk.Entry(cadastro_frame, width=30, font=("Segoe UI", 10), 
+                                  relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.nome_entry.grid(row=0, column=1, padx=12, pady=8, ipady=6)
         
-        tk.Label(cadastro_frame, text="Senha:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.senha_entry = tk.Entry(cadastro_frame, width=30, show="*")
-        self.senha_entry.grid(row=2, column=1, padx=5, pady=5)
+        tk.Label(cadastro_frame, text="Email:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        self.email_entry = tk.Entry(cadastro_frame, width=30, font=("Segoe UI", 10), 
+                                   relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.email_entry.grid(row=1, column=1, padx=12, pady=8, ipady=6)
+        
+        tk.Label(cadastro_frame, text="Senha:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        self.senha_entry = tk.Entry(cadastro_frame, width=30, font=("Segoe UI", 10), 
+                                   show="•", relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.senha_entry.grid(row=2, column=1, padx=12, pady=8, ipady=6)
         
         self.tipo_usuario_var = tk.StringVar(cadastro_frame)
         self.tipo_usuario_var.set("Cliente")
-        tk.Label(cadastro_frame, text="Tipo:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        tk.OptionMenu(cadastro_frame, self.tipo_usuario_var, "Cliente", "Técnico", command=self.toggle_campos_especificos).grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+        tk.Label(cadastro_frame, text="Tipo:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=3, column=0, padx=12, pady=8, sticky="w")
+        tipo_menu = ttk.Combobox(cadastro_frame, textvariable=self.tipo_usuario_var, 
+                               values=["Cliente", "Técnico"], state="readonly", width=27, 
+                               font=("Segoe UI", 9))
+        tipo_menu.grid(row=3, column=1, padx=12, pady=8)
+        tipo_menu.bind("<<ComboboxSelected>>", self.toggle_campos_especificos)
         
-        self.campos_especificos_frame = tk.Frame(cadastro_frame)
-        self.campos_especificos_frame.grid(row=4, column=0, columnspan=2, pady=5)
+        self.campos_especificos_frame = tk.Frame(cadastro_frame, bg="white", highlightthickness=0)
+        self.campos_especificos_frame.grid(row=4, column=0, columnspan=2, pady=10)
         self.setup_campos_cliente()
         
-        tk.Button(self.aba_usuarios, text="Cadastrar", command=self.cadastrar_usuario).pack(pady=10)
+        # Botão Cadastrar
+        cadastro_button = tk.Button(container, text="✓ Cadastrar", command=self.cadastrar_usuario,
+                                   font=("Segoe UI", 10, "bold"), bg="#3498db", fg="white",
+                                   relief="flat", padx=40, pady=9, cursor="hand2",
+                                   activebackground="#2980b9", highlightthickness=0, bd=0)
+        cadastro_button.pack(pady=15)
 
     def toggle_campos_especificos(self, *args):
         for widget in self.campos_especificos_frame.winfo_children():
@@ -231,14 +342,24 @@ class TelaAdmin(tk.Frame):
             self.setup_campos_tecnico()
 
     def setup_campos_cliente(self):
-        tk.Label(self.campos_especificos_frame, text="Telefone:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.telefone_entry = tk.Entry(self.campos_especificos_frame, width=30)
-        self.telefone_entry.grid(row=0, column=1, padx=5, pady=5)
+        for widget in self.campos_especificos_frame.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.campos_especificos_frame, text="Telefone:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=0, column=0, padx=10, pady=8, sticky="w")
+        self.telefone_entry = tk.Entry(self.campos_especificos_frame, width=27, font=("Segoe UI", 10), 
+                                      relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.telefone_entry.grid(row=0, column=1, padx=10, pady=8, ipady=6)
 
     def setup_campos_tecnico(self):
-        tk.Label(self.campos_especificos_frame, text="Especialidade:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.especialidade_entry = tk.Entry(self.campos_especificos_frame, width=30)
-        self.especialidade_entry.grid(row=0, column=1, padx=5, pady=5)
+        for widget in self.campos_especificos_frame.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.campos_especificos_frame, text="Especialidade:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").grid(row=0, column=0, padx=10, pady=8, sticky="w")
+        self.especialidade_entry = tk.Entry(self.campos_especificos_frame, width=27, font=("Segoe UI", 10), 
+                                           relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.especialidade_entry.grid(row=0, column=1, padx=10, pady=8, ipady=6)
 
     def cadastrar_usuario(self):
         nome = self.nome_entry.get()
@@ -279,24 +400,37 @@ class TelaAdmin(tk.Frame):
 
 class TelaCliente(tk.Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, bg="#f5f7fa")
         self.controller = controller
         
-        tk.Label(self, text="Área do Cliente", font=("Arial", 24)).pack(pady=10)
+        # Header
+        header_frame = tk.Frame(self, bg="#1a3a52", height=85, highlightthickness=0)
+        header_frame.pack(fill="x")
         
+        tk.Label(header_frame, text="👥 Cliente", font=("Segoe UI", 26, "bold"), 
+                bg="#1a3a52", fg="white").pack(pady=15)
+        
+        # Notebook
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(expand=True, fill="both", padx=10, pady=10)
+        self.notebook.pack(expand=True, fill="both", padx=20, pady=20)
         
-        self.aba_abrir = tk.Frame(self.notebook)
-        self.notebook.add(self.aba_abrir, text="Abrir Chamado")
+        self.aba_abrir = tk.Frame(self.notebook, bg="white")
+        self.notebook.add(self.aba_abrir, text="📝 Novo Chamado")
         self.setup_aba_abrir()
         
-        # Aba de Meus Chamados
-        self.aba_meus = tk.Frame(self.notebook)
-        self.notebook.add(self.aba_meus, text="Meus Chamados")
+        self.aba_meus = tk.Frame(self.notebook, bg="white")
+        self.notebook.add(self.aba_meus, text="📌 Meus Chamados")
         self.setup_aba_meus()
-    
-        tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
+        
+        # Footer com botão sair
+        footer_frame = tk.Frame(self, bg="#f5f7fa", highlightthickness=0)
+        footer_frame.pack(fill="x", pady=10)
+        
+        logout_button = tk.Button(footer_frame, text="← Sair", command=controller.fazer_logout,
+                                 font=("Segoe UI", 10, "bold"), bg="#e74c3c", fg="white",
+                                 relief="flat", padx=30, pady=8, cursor="hand2",
+                                 activebackground="#c0392b", highlightthickness=0, bd=0)
+        logout_button.pack()
         
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
@@ -306,19 +440,38 @@ class TelaCliente(tk.Frame):
             self.update_meus_chamados_list()
 
     def setup_aba_abrir(self):
-        tk.Label(self.aba_abrir, text="Descreva seu problema:", font=("Arial", 14)).pack(pady=5)
+        container = tk.Frame(self.aba_abrir, bg="white", highlightthickness=0)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
         
-        self.descricao_text = tk.Text(self.aba_abrir, width=60, height=10)
-        self.descricao_text.pack(pady=5)
+        tk.Label(container, text="📝 Abrir Novo Chamado", font=("Segoe UI", 13, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 15), anchor="w")
         
-        prioridade_frame = tk.Frame(self.aba_abrir)
-        prioridade_frame.pack(pady=5)
-        tk.Label(prioridade_frame, text="Prioridade:").pack(side="left", padx=5)
+        tk.Label(container, text="Descrição do Problema:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 8), anchor="w", padx=12)
+        
+        self.descricao_text = tk.Text(container, width=70, height=10, font=("Segoe UI", 10),
+                                     relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a")
+        self.descricao_text.pack(pady=(0, 18), expand=True, fill="both", padx=12)
+        
+        prioridade_frame = tk.Frame(container, bg="white", highlightthickness=0)
+        prioridade_frame.pack(pady=0, anchor="center")
+        
+        tk.Label(prioridade_frame, text="⚡ Prioridade:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").pack(side="left", padx=5)
+        
         self.prioridade_var = tk.StringVar(prioridade_frame)
         self.prioridade_var.set("Normal")
-        tk.OptionMenu(prioridade_frame, self.prioridade_var, "Baixa", "Normal", "Alta").pack(side="left", padx=5)
         
-        tk.Button(self.aba_abrir, text="Abrir Chamado", command=self.abrir_chamado).pack(pady=10)
+        priority_dropdown = ttk.Combobox(prioridade_frame, textvariable=self.prioridade_var, 
+                                        values=["Baixa", "Normal", "Alta"], state="readonly", 
+                                        width=20, font=("Segoe UI", 10))
+        priority_dropdown.pack(side="left", padx=5)
+        
+        open_button = tk.Button(container, text="✓ Abrir Chamado", command=self.abrir_chamado,
+                               font=("Segoe UI", 10, "bold"), bg="#27ae60", fg="white",
+                               relief="flat", padx=40, pady=9, cursor="hand2",
+                               activebackground="#229954", highlightthickness=0, bd=0)
+        open_button.pack(pady=15)
 
     def abrir_chamado(self):
         descricao = self.descricao_text.get("1.0", tk.END).strip()
@@ -336,17 +489,32 @@ class TelaCliente(tk.Frame):
             self.descricao_text.delete("1.0", tk.END)
             self.prioridade_var.set("Normal")
             
-            self.update_meus_chamados_list
+            self.update_meus_chamados_list()
             if "TelaAdmin" in self.controller.frames:
                 self.controller.frames["TelaAdmin"].update_chamados_list()
         else:
             messagebox.showerror("Erro", "Não foi possível abrir o chamado.")
         
     def setup_aba_meus(self):
-        tk.Label(self.aba_meus, text="Meus Chamados", font=("Arial", 16)).pack(pady=5)
+        container = tk.Frame(self.aba_meus, bg="white", highlightthickness=0)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
         
-        self.meus_chamados_listbox = tk.Listbox(self.aba_meus, width=100, height=15)
-        self.meus_chamados_listbox.pack(padx=10, pady=5)
+        tk.Label(container, text="📌 Meus Chamados", font=("Segoe UI", 13, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 12), anchor="w")
+        
+        # Listbox com scrollbar
+        scrollbar_frame = tk.Frame(container, bg="white", highlightthickness=0)
+        scrollbar_frame.pack(fill="both", expand=True)
+        
+        scrollbar = tk.Scrollbar(scrollbar_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        self.meus_chamados_listbox = tk.Listbox(scrollbar_frame, width=120, height=15,
+                                               font=("Segoe UI", 9), yscrollcommand=scrollbar.set,
+                                               relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a",
+                                               selectbackground="#3498db", selectforeground="white")
+        self.meus_chamados_listbox.pack(fill="both", expand=True)
+        scrollbar.config(command=self.meus_chamados_listbox.yview)
         self.meus_chamados_listbox.bind('<<ListboxSelect>>', self.selecionar_meu_chamado)
         
         self.update_meus_chamados_list()
@@ -369,28 +537,69 @@ class TelaCliente(tk.Frame):
 
 class TelaTecnico(tk.Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
+        super().__init__(parent, bg="#f5f7fa")
         self.controller = controller
         
-        tk.Label(self, text="Área do Técnico", font=("Arial", 24)).pack(pady=10)
+        # Header
+        header_frame = tk.Frame(self, bg="#1a3a52", height=85, highlightthickness=0)
+        header_frame.pack(fill="x")
         
-        tk.Label(self, text="Chamados Designados", font=("Arial", 16)).pack(pady=5)
+        tk.Label(header_frame, text="🔧 Técnico", font=("Segoe UI", 26, "bold"), 
+                bg="#1a3a52", fg="white").pack(pady=15)
         
-        self.chamados_listbox = tk.Listbox(self, width=100, height=15)
-        self.chamados_listbox.pack(padx=10, pady=5)
+        # Container principal
+        main_container = tk.Frame(self, bg="white", highlightthickness=0)
+        main_container.pack(fill="both", expand=True, padx=12, pady=12)
+        
+        tk.Label(main_container, text="📌 Chamados Designados", font=("Segoe UI", 13, "bold"), 
+                bg="white", fg="#1a1a1a").pack(pady=(0, 12), anchor="w")
+        
+        # Listbox com scrollbar
+        scrollbar_frame = tk.Frame(main_container, bg="white", highlightthickness=0)
+        scrollbar_frame.pack(fill="both", expand=True, pady=(0, 15))
+        
+        scrollbar = tk.Scrollbar(scrollbar_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        self.chamados_listbox = tk.Listbox(scrollbar_frame, width=120, height=15,
+                                          font=("Segoe UI", 9), yscrollcommand=scrollbar.set,
+                                          relief="flat", borderwidth=0, bg="#f8f9fa", fg="#1a1a1a",
+                                          selectbackground="#3498db", selectforeground="white")
+        self.chamados_listbox.pack(fill="both", expand=True)
+        scrollbar.config(command=self.chamados_listbox.yview)
         self.chamados_listbox.bind('<<ListboxSelect>>', self.selecionar_chamado)
-        status_frame = tk.Frame(self)
-        status_frame.pack(pady=10)
         
-        tk.Label(status_frame, text="Alterar Status:").pack(side="left", padx=5)
+        # Frame de status
+        status_frame = tk.Frame(main_container, bg="white", highlightthickness=0)
+        status_frame.pack(pady=15, fill="x", expand=False, anchor="center")
+        
+        tk.Label(status_frame, text="📊 Status:", font=("Segoe UI", 9, "bold"), 
+                bg="white", fg="#1a1a1a").pack(side="left", padx=5)
         
         self.status_var = tk.StringVar(status_frame)
         self.status_var.set("Em andamento")
-        self.status_dropdown = tk.OptionMenu(status_frame, self.status_var, "Em andamento", "Concluído", "Aberto")
+        
+        self.status_dropdown = ttk.Combobox(status_frame, textvariable=self.status_var,
+                                           values=["Em andamento", "Concluído", "Aberto"],
+                                           state="readonly", width=20, font=("Segoe UI", 10))
         self.status_dropdown.pack(side="left", padx=5)
         
-        tk.Button(status_frame, text="Atualizar Status", command=self.atualizar_status).pack(side="left", padx=5)
-        tk.Button(self, text="Sair", command=controller.fazer_logout).pack(pady=10)
+        update_button = tk.Button(status_frame, text="✓ Atualizar", command=self.atualizar_status,
+                                 font=("Segoe UI", 10, "bold"), bg="#f39c12", fg="white",
+                                 relief="flat", padx=20, cursor="hand2", activebackground="#e67e22",
+                                 highlightthickness=0, bd=0)
+        update_button.pack(side="left", padx=5)
+        
+        # Footer com botão sair
+        footer_frame = tk.Frame(self, bg="#f5f7fa", highlightthickness=0)
+        footer_frame.pack(fill="x", pady=10)
+        
+        logout_button = tk.Button(footer_frame, text="← Sair", command=controller.fazer_logout,
+                                 font=("Segoe UI", 10, "bold"), bg="#e74c3c", fg="white",
+                                 relief="flat", padx=30, pady=8, cursor="hand2",
+                                 activebackground="#c0392b", highlightthickness=0, bd=0)
+        logout_button.pack()
+        
         self.bind('<Visibility>', self.on_show)
 
     def on_show(self, event):
