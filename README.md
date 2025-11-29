@@ -1,9 +1,9 @@
 # Helpy - Sistema de Central de Suporte (Helpdesk)
 
 ## Integrantes do Grupo
-- Guilherme Araújo Sales (guilherme@tech.com)
-- Rafael Guimarães Silva (rafael@email.com)
-- Vinicius Conceição Rolt (rolt@suporte.com)
+- Guilherme Araújo Sales (guilhermesales@unisantos.br)
+- Rafael Guimarães Silva (rafaelgsilva@unisantos.br)
+- Vinicius Conceição Rolt (rolt@unisantos.br)
 
 ## Descrição do Projeto
 O Helpy é um sistema de helpdesk desenvolvido em Python com interface gráfica utilizando Tkinter e persistência de dados via SQLite. O objetivo do projeto é gerenciar chamados de suporte técnico, permitindo que clientes registrem problemas, técnicos acompanhem e atualizem o status dos chamados, e administradores gerenciem usuários e designem técnicos para cada chamado.
