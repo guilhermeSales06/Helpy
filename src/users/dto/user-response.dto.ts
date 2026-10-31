@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AreaResponseDto } from '../../areas/dto/area.dto.js';
 import { PaginationMetaDto } from '../../common/dto/pagination.dto.js';
 import { Role } from '../../generated/prisma/enums.js';
 
@@ -20,6 +21,12 @@ export class UserResponseDto {
 
   @ApiProperty({ type: String, nullable: true })
   specialty: string | null;
+
+  @ApiProperty({
+    type: [AreaResponseDto],
+    description: 'Empty for anyone but technicians',
+  })
+  areas: AreaResponseDto[];
 
   @ApiProperty({ type: Boolean })
   active: boolean;

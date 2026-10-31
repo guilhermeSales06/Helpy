@@ -21,7 +21,43 @@ export async function createTestApp() {
 }
 
 export function resetDatabase(prisma: PrismaService) {
-  return prisma.$executeRaw`TRUNCATE "User" CASCADE`;
+  return prisma.$executeRaw`TRUNCATE "User", "Area" CASCADE`;
+}
+
+export async function createTechnician(
+  prisma: PrismaService,
+  email: string,
+  areaIds: string[] = [],
+) {
+  return prisma.user.create({
+    data: {
+      name: `Test technician ${email}`,
+      email,
+      passwordHash: await hashPassword(PASSWORD),
+      role: Role.TECHNICIAN,
+      technicianProfile: {
+        create: { areas: { connect: areaIds.map((id) => ({ id })) } },
+      },
+    },
+  });
+}
+
+export async function createCategory(
+  prisma: PrismaService,
+  areaName: string,
+  categoryName = `${areaName} category`,
+) {
+  return prisma.category.create({
+    data: {
+      name: categoryName,
+      area: {
+        connectOrCreate: {
+          where: { name: areaName },
+          create: { name: areaName },
+        },
+      },
+    },
+  });
 }
 
 export async function createUser(

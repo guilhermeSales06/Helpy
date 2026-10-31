@@ -4,7 +4,7 @@
 
 API REST de um sistema de chamados (helpdesk), reescrita em NestJS a partir de um projeto acadêmico em Python. O código original está em [`legacy/`](legacy/).
 
-> Em desenvolvimento. Já disponíveis: autenticação, permissões por perfil e gestão de usuários. Os chamados vêm a seguir.
+> Em desenvolvimento. Já disponíveis: autenticação, permissões por perfil, gestão de usuários, áreas, categorias e chamados. Comentários, histórico e métricas vêm a seguir.
 
 ## Stack
 
@@ -52,6 +52,35 @@ Dois cuidados:
 | `CLIENT` | Por um admin | Não |
 
 Usuários são desativados em vez de apagados, para preservar o histórico. A desativação bloqueia o login e o refresh na hora. Um access token já emitido pode continuar válido por até 15 minutos.
+
+## Chamados
+
+Cada área agrupa categorias (ex.: Hardware → Impressora), e cada técnico atende uma ou mais áreas.
+
+| Perfil | Quais chamados vê |
+| --- | --- |
+| `CLIENT` | Os próprios |
+| `TECHNICIAN` | Os atribuídos a ele e os sem técnico das suas áreas |
+| `ADMIN` | Todos |
+
+Um chamado que o usuário não pode ver responde 404, como se não existisse.
+
+**Quem faz o quê**
+
+- **Abrir:** cliente.
+- **Atribuir ou reatribuir técnico:** admin. Só com o chamado em `OPEN` ou `IN_PROGRESS`.
+- **Mudar prioridade:** admin ou técnico atribuído. Não vale para chamados `CLOSED`.
+
+**Mudança de status**
+
+| De | Para | Quem pode |
+| --- | --- | --- |
+| `OPEN` | `IN_PROGRESS` | Técnico atribuído, admin (exige técnico no chamado) |
+| `IN_PROGRESS` | `RESOLVED` | Técnico atribuído, admin |
+| `RESOLVED` | `CLOSED` | Cliente, admin |
+| `RESOLVED` | `IN_PROGRESS` (reabrir) | Cliente, técnico atribuído, admin |
+
+`CLOSED` é definitivo. Qualquer outra mudança responde 409, e 409 também indica que outra pessoa alterou o chamado ao mesmo tempo: recarregue e tente de novo.
 
 ## Scripts
 

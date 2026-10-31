@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { hashPassword } from '../auth/password.js';
 import { paginationMeta } from '../common/dto/pagination.dto.js';
+import { isUniqueViolation } from '../common/prisma-errors.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { Role } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -20,10 +21,8 @@ import { toUserResponse, userSelect } from './users.mapper.js';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create({ password, specialty, ...data }: CreateUserDto) {
-    if (specialty !== undefined && data.role !== Role.TECHNICIAN) {
-      throw new BadRequestException('Only technicians can have a specialty');
-    }
+  async create({ password, specialty, areaIds, ...data }: CreateUserDto) {
+    await this.assertTechnicianFields(data.role, specialty, areaIds);
 
     const user = await this.rejectDuplicateEmail(
       this.prisma.user.create({
@@ -32,7 +31,12 @@ export class UsersService {
           passwordHash: await hashPassword(password),
           technicianProfile:
             data.role === Role.TECHNICIAN
-              ? { create: { specialty } }
+              ? {
+                  create: {
+                    specialty,
+                    areas: { connect: areaIds?.map((id) => ({ id })) },
+                  },
+                }
               : undefined,
         },
         select: userSelect,
@@ -68,11 +72,12 @@ export class UsersService {
     return toUserResponse(user);
   }
 
-  async update(id: string, { password, specialty, ...data }: UpdateUserDto) {
+  async update(
+    id: string,
+    { password, specialty, areaIds, ...data }: UpdateUserDto,
+  ) {
     const { role } = await this.findOne(id);
-    if (specialty !== undefined && role !== Role.TECHNICIAN) {
-      throw new BadRequestException('Only technicians can have a specialty');
-    }
+    await this.assertTechnicianFields(role, specialty, areaIds);
     const passwordHash = password ? await hashPassword(password) : undefined;
 
     const user = await this.rejectDuplicateEmail(
@@ -90,11 +95,19 @@ export class UsersService {
             ...data,
             passwordHash,
             technicianProfile:
-              specialty !== undefined
+              specialty !== undefined || areaIds !== undefined
                 ? {
                     upsert: {
-                      create: { specialty },
-                      update: { specialty },
+                      create: {
+                        specialty,
+                        areas: { connect: areaIds?.map((id) => ({ id })) },
+                      },
+                      update: {
+                        specialty,
+                        areas: areaIds && {
+                          set: areaIds.map((id) => ({ id })),
+                        },
+                      },
                     },
                   }
                 : undefined,
@@ -128,14 +141,32 @@ export class UsersService {
     return toUserResponse(user);
   }
 
+  private async assertTechnicianFields(
+    role: Role,
+    specialty?: string,
+    areaIds?: string[],
+  ) {
+    if (specialty === undefined && areaIds === undefined) return;
+    if (role !== Role.TECHNICIAN) {
+      throw new BadRequestException(
+        'Only technicians can have a specialty or areas',
+      );
+    }
+    if (!areaIds?.length) return;
+
+    const found = await this.prisma.area.count({
+      where: { id: { in: areaIds } },
+    });
+    if (found !== areaIds.length) {
+      throw new BadRequestException('Area not found');
+    }
+  }
+
   private async rejectDuplicateEmail<T>(query: Promise<T>) {
     try {
       return await query;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('Email already in use');
       }
       throw error;
