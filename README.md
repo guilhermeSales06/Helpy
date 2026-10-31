@@ -12,7 +12,7 @@ NestJS, TypeScript, PostgreSQL e Prisma.
 
 ## Como rodar
 
-Requer Node 26 (ou `^22.22.3` / `^24.15`) e Docker.
+Requer Node 26 e Docker.
 
 ```bash
 npm install
@@ -31,6 +31,8 @@ npm run start:dev
 - API: `http://localhost:3000/api/v1`
 - Documentação (Swagger): `http://localhost:3000/docs`
 - Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
+
+Para publicar, siga o [guia de deploy](docs/DEPLOY.md).
 
 ## Autenticação para o front-end
 

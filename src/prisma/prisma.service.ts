@@ -8,6 +8,8 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: ConfigService) {
     const adapter = new PrismaPg({
       connectionString: config.getOrThrow<string>('DATABASE_URL'),
+      // Serverless instances multiply, and each one keeps its own pool.
+      max: 3,
     });
     super({ adapter });
   }

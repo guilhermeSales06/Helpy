@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 import { createTestApp } from './helpers.js';
 import { TEST_CORS_ORIGIN } from './test-env.js';
 
@@ -22,9 +23,27 @@ describe('App (e2e)', () => {
       .expect({ status: 'ok' });
   });
 
+  describe('database', () => {
+    it('has row level security on every table', async () => {
+      const tables = await app.get(PrismaService).$queryRaw<
+        { tablename: string }[]
+      >`SELECT tablename FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename <> '_prisma_migrations'
+          AND NOT rowsecurity`;
+
+      expect(tables).toEqual([]);
+    });
+  });
+
   describe('docs', () => {
-    it('serves Swagger UI', () => {
-      return request(app.getHttpServer()).get('/docs').expect(200);
+    it('serves Swagger UI with its assets from the CDN', async () => {
+      const { text } = await request(app.getHttpServer())
+        .get('/docs')
+        .expect(200);
+
+      expect(text).toContain('swagger-ui-dist@5.34.0/swagger-ui.css');
+      expect(text).toContain('swagger-ui-dist@5.34.0/swagger-ui-bundle.js');
     });
 
     it('documents the routes without exposing the password hash', async () => {
