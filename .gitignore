@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# prisma generated client
+src/generated/
+
+# tests
+coverage/
+
+# logs
+*.log
+
+# legacy SQLite database
+*.db
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# vercel
+.vercel/

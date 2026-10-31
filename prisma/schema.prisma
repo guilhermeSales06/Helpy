@@ -1,0 +1,152 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  CLIENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketEventType {
+  STATUS_CHANGED
+  ASSIGNED
+  PRIORITY_CHANGED
+  COMMENTED
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role
+  phone        String?
+  active       Boolean   @default(true)
+  lastReadAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  technicianProfile TechnicianProfile?
+  openedTickets     Ticket[]           @relation("TicketClient")
+  assignedTickets   Ticket[]           @relation("TicketTechnician")
+  comments          Comment[]
+  ticketEvents      TicketEvent[]
+  refreshTokens     RefreshToken[]
+}
+
+model TechnicianProfile {
+  userId    String  @id @db.Uuid
+  specialty String?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areas Area[]
+}
+
+model Area {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique
+
+  categories  Category[]
+  technicians TechnicianProfile[]
+}
+
+model Category {
+  id     String @id @default(uuid()) @db.Uuid
+  name   String
+  areaId String @db.Uuid
+
+  area    Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  tickets Ticket[]
+
+  @@unique([areaId, name])
+}
+
+model Ticket {
+  id           String         @id @default(uuid()) @db.Uuid
+  title        String
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(NORMAL)
+  clientId     String         @db.Uuid
+  technicianId String?        @db.Uuid
+  categoryId   String         @db.Uuid
+  resolvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  client     User          @relation("TicketClient", fields: [clientId], references: [id], onDelete: Restrict)
+  technician User?         @relation("TicketTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  comments   Comment[]
+  events     TicketEvent[]
+
+  @@index([clientId])
+  @@index([technicianId])
+  @@index([categoryId])
+  @@index([status, priority])
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  body      String
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+}
+
+model TicketEvent {
+  id        String          @id @default(uuid()) @db.Uuid
+  ticketId  String          @db.Uuid
+  actorId   String          @db.Uuid
+  type      TicketEventType
+  from      String?
+  to        String?
+  createdAt DateTime        @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
