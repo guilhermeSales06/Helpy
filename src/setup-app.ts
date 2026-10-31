@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 
+// Vercel's function bundle leaves out the files of swagger-ui-dist, because they
+// are only read at runtime, so /docs loads them from a CDN instead.
+const SWAGGER_UI_CDN = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.0';
+
 // Shared by the local server, the e2e tests and the future Vercel entrypoint,
 // so all three expose the same routes.
 export function setupApp(app: INestApplication) {
@@ -37,5 +41,13 @@ export function setupApp(app: INestApplication) {
       .addSecurityRequirements('bearer')
       .build(),
   );
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'Helpy API',
+    customCssUrl: `${SWAGGER_UI_CDN}/swagger-ui.css`,
+    customJs: [
+      `${SWAGGER_UI_CDN}/swagger-ui-bundle.js`,
+      `${SWAGGER_UI_CDN}/swagger-ui-standalone-preset.js`,
+    ],
+    customfavIcon: `${SWAGGER_UI_CDN}/favicon-32x32.png`,
+  });
 }
