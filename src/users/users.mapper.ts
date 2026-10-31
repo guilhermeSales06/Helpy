@@ -11,7 +11,12 @@ export const userSelect = {
   active: true,
   createdAt: true,
   updatedAt: true,
-  technicianProfile: { select: { specialty: true } },
+  technicianProfile: {
+    select: {
+      specialty: true,
+      areas: { select: { id: true, name: true }, orderBy: { name: 'asc' } },
+    },
+  },
 } satisfies Prisma.UserSelect;
 
 type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>;
@@ -24,6 +29,7 @@ export function toUserResponse(user: SelectedUser): UserResponseDto {
     role: user.role,
     phone: user.phone,
     specialty: user.technicianProfile?.specialty ?? null,
+    areas: user.technicianProfile?.areas ?? [],
     active: user.active,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

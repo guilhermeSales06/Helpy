@@ -41,6 +41,15 @@ describe('App (e2e)', () => {
           '/api/v1/users',
           '/api/v1/users/{id}',
           '/api/v1/users/{id}/active',
+          '/api/v1/areas',
+          '/api/v1/areas/{id}',
+          '/api/v1/categories',
+          '/api/v1/categories/{id}',
+          '/api/v1/tickets',
+          '/api/v1/tickets/{id}',
+          '/api/v1/tickets/{id}/assign',
+          '/api/v1/tickets/{id}/status',
+          '/api/v1/tickets/{id}/priority',
         ]),
       );
       expect(JSON.stringify(body)).not.toContain('passwordHash');

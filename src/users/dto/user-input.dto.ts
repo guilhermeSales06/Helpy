@@ -6,24 +6,26 @@ import {
 } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   MaxLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto.js';
+import { toBoolean, trim } from '../../common/dto/transforms.js';
 import { Role } from '../../generated/prisma/enums.js';
 
 // Admins only come from the seed, so the API can't create or promote one.
 export const MANAGEABLE_ROLES = [Role.CLIENT, Role.TECHNICIAN] as const;
 export type ManageableRole = (typeof MANAGEABLE_ROLES)[number];
-
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
 
 export class CreateUserDto {
   @ApiProperty({ type: String, maxLength: 120 })
@@ -66,6 +68,19 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(120)
   specialty?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Technicians only. Replaces the current areas when updating a user.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  areaIds?: string[];
 }
 
 export class UpdateUserDto extends PartialType(
@@ -86,9 +101,7 @@ export class ListUsersQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
-  @Transform(({ value }) =>
-    value === 'true' ? true : value === 'false' ? false : value,
-  )
+  @Transform(toBoolean)
   @IsBoolean()
   active?: boolean;
 }
