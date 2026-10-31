@@ -1,5 +1,7 @@
 # Helpy API
 
+[![CI](https://github.com/guilhermeSales06/Helpy/actions/workflows/ci.yml/badge.svg)](https://github.com/guilhermeSales06/Helpy/actions/workflows/ci.yml)
+
 API REST de um sistema de chamados (helpdesk), reescrita em NestJS a partir de um projeto acadêmico em Python. O código original está em [`legacy/`](legacy/).
 
 > Em desenvolvimento. Já disponíveis: autenticação, permissões por perfil e gestão de usuários. Os chamados vêm a seguir.
@@ -64,3 +66,5 @@ Usuários são desativados em vez de apagados, para preservar o histórico. A de
 | `npm test` | Testes unitários |
 | `npm run test:e2e` | Testes e2e, em um banco próprio (`helpy_test`), com o Postgres local no ar |
 | `npm run lint` | Lint com oxlint |
+| `npm run typecheck` | Checa os tipos, incluindo os testes |
+| `npm run format:check` | Confere a formatação com Prettier |
