@@ -8,4 +8,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.listen(process.env.PORT ?? 3000);
 }
-await bootstrap();
+
+// Must not be awaited at the top level. On Vercel, listen() never resolves, and
+// requests only start after this module finishes loading, so it would hang.
+void bootstrap();
