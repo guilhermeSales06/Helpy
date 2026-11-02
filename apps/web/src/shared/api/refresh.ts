@@ -48,3 +48,15 @@ export function refreshSession(): Promise<RefreshResult> {
   inFlight = shared;
   return shared;
 }
+
+// Runs a task that sends the refresh cookie (logout) so it cannot race a
+// rotation. It waits for this tab's refresh first, outside the lock because
+// refreshSession takes the lock itself, then holds the lock across tabs.
+export async function runWithRefreshLock<T>(
+  task: () => Promise<T>,
+): Promise<T> {
+  if (inFlight) await inFlight.catch(() => undefined);
+
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  return locks ? await locks.request(LOCK_NAME, task) : await task();
+}

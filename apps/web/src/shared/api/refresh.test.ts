@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { refreshSession } from './refresh';
+import { refreshSession, runWithRefreshLock } from './refresh';
 import { getAccessToken, setAccessToken } from './token-store';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -105,5 +105,48 @@ describe('refreshSession', () => {
       accessToken: 'second',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('runWithRefreshLock', () => {
+  it('runs the task inside the lock "helpy-refresh"', async () => {
+    const task = vi.fn(async () => 'done');
+
+    expect(await runWithRefreshLock(task)).toBe('done');
+
+    expect(lockRequest).toHaveBeenCalledTimes(1);
+    expect(lockRequest.mock.calls[0]![0]).toBe('helpy-refresh');
+    expect(task).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for a refresh in flight in this tab without deadlocking', async () => {
+    let finishFetch!: (response: Response) => void;
+    fetchMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        finishFetch = resolve;
+      }),
+    );
+    const order: string[] = [];
+    const refresh = refreshSession().then(() => order.push('refresh'));
+    const task = vi.fn(async () => {
+      order.push('task');
+    });
+
+    const run = runWithRefreshLock(task);
+    await Promise.resolve();
+    expect(task).not.toHaveBeenCalled();
+
+    finishFetch(ok());
+    await Promise.all([refresh, run]);
+
+    expect(order).toEqual(['refresh', 'task']);
+  });
+
+  it('just calls the task when Web Locks is missing', async () => {
+    defineLocks(undefined);
+    const task = vi.fn(async () => 'plain');
+
+    expect(await runWithRefreshLock(task)).toBe('plain');
+    expect(lockRequest).not.toHaveBeenCalled();
   });
 });
