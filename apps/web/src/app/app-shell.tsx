@@ -43,7 +43,7 @@ export function AppShell() {
   const rowBase =
     'flex h-9 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-sm outline-none focus-visible:ring-4 focus-visible:ring-focus';
   const rowIdle = collapsed
-    ? 'text-white hover:bg-black/8'
+    ? 'text-white hover:bg-black/8 focus-visible:ring-white/70'
     : 'text-secondary hover:bg-ink/5';
 
   return (
