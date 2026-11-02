@@ -21,7 +21,7 @@ Sem o `sslmode`, a conexão não é criptografada.
 
 ## 2. Vercel
 
-1. Em [vercel.com/new](https://vercel.com/new), importe o repositório. O framework **NestJS** é detectado sozinho: não altere os comandos de build.
+1. Em [vercel.com/new](https://vercel.com/new), importe o repositório e defina o **Root Directory** como `apps/api`. O framework **NestJS** é detectado sozinho: não altere os comandos de build.
 2. Confirme que a **Production Branch** é a `main`.
 3. Em **Environment Variables**, adicione estas variáveis **apenas no ambiente Production**:
 
@@ -42,7 +42,7 @@ Deploys de preview não têm banco, de propósito, para nunca alterar os dados d
 
 ## 3. Criar o primeiro admin
 
-Rode no seu computador, uma única vez. Use uma senha forte, que você não usa em outro lugar. As variáveis valem só para esta janela do terminal e têm prioridade sobre o `.env`.
+Rode no seu computador, dentro de `apps/api`, uma única vez. Use uma senha forte, que você não usa em outro lugar. As variáveis valem só para esta janela do terminal e têm prioridade sobre o `.env`.
 
 No PowerShell:
 
