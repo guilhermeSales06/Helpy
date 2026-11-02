@@ -121,7 +121,7 @@ describe('router', () => {
     await screen.findByRole('heading', { name: 'Entrar' });
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toEqual({ redirect: '/' });
-    expect(router.history.length - before).toBeLessThanOrEqual(1);
+    expect(router.history.length - before).toBe(0);
     await change(authenticated);
     await screen.findByRole('heading', { name: 'Início' });
     expect(router.state.location.pathname).toBe('/');
