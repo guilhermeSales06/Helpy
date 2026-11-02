@@ -18,6 +18,10 @@ export function onSessionExpired(listener: () => void): () => void {
   };
 }
 
+// One expiry notifies once, however many requests saw it. Re-armed as soon as
+// a request goes out with a token again (new login or successful refresh).
+let expiryNotified = false;
+
 function isAuthRequest(request: Request): boolean {
   const { pathname } = new URL(request.url, 'http://localhost');
   return AUTH_PATHS.includes(pathname);
@@ -29,7 +33,10 @@ const pending = new Map<string, Request>();
 const authMiddleware: Middleware = {
   onRequest({ request, id }) {
     const token = getAccessToken();
-    if (token) request.headers.set('Authorization', `Bearer ${token}`);
+    if (token) {
+      request.headers.set('Authorization', `Bearer ${token}`);
+      expiryNotified = false;
+    }
     if (!isAuthRequest(request)) pending.set(id, request.clone());
     return request;
   },
@@ -41,7 +48,10 @@ const authMiddleware: Middleware = {
 
     const result = await refreshSession();
     if (result.status === 'expired') {
-      expiredListeners.forEach((listener) => listener());
+      if (!expiryNotified) {
+        expiryNotified = true;
+        expiredListeners.forEach((listener) => listener());
+      }
       return undefined;
     }
     if (result.status === 'unavailable') return undefined;

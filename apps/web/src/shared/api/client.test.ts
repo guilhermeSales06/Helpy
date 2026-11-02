@@ -118,6 +118,38 @@ describe('api client', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it('notifies once when concurrent requests share one expired refresh', async () => {
+    serve({ refresh: () => json({ message: 'no' }, 401) });
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+
+    const results = await Promise.all([
+      api.GET('/api/v1/auth/me'),
+      api.GET('/api/v1/auth/me'),
+      api.GET('/api/v1/auth/me'),
+    ]);
+    unsubscribe();
+
+    expect(results.map((r) => r.response.status)).toEqual([401, 401, 401]);
+    expect(refreshCalls()).toHaveLength(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not notify again for the same expiry, but can after a new session', async () => {
+    serve({ refresh: () => json({ message: 'no' }, 401) });
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+
+    await api.GET('/api/v1/auth/me');
+    await api.GET('/api/v1/auth/me'); // token already cleared
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    setAccessToken('fresh'); // a new login
+    await api.GET('/api/v1/auth/me');
+    unsubscribe();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it('returns the original 401 without expiring when the refresh is unavailable', async () => {
     serve({ refresh: () => json({ message: 'down' }, 500) });
     const listener = vi.fn();
