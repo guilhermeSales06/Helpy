@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryHistory } from '@tanstack/react-router';
+import { createMemoryHistory, createRoute } from '@tanstack/react-router';
 import { describe, expect, it, vi } from 'vitest';
 import {
   AuthContext,
@@ -23,16 +23,41 @@ const user: User = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-function auth(state: AuthState, retry = vi.fn()): AuthContextValue {
+function auth(
+  state: AuthState,
+  retry = vi.fn(),
+  login = vi.fn(),
+): AuthContextValue {
   return {
     state,
-    login: vi.fn(),
+    login,
     logout: vi.fn(),
     retry,
   };
 }
 
-function setup(initial: string, state: AuthState, retry = vi.fn()) {
+// Adds a protected page that exists only in tests, under the real `_app`
+// guard. The route tree is shared, so this runs once, before any router
+// used by a test is created.
+(function addExtraPage() {
+  const appRoute = createAppRouter().routesById['/_app' as never] as never as {
+    addChildren: (c: unknown[]) => unknown;
+    children: unknown[];
+  };
+  const extra = createRoute({
+    getParentRoute: () => appRoute as never,
+    path: '/x',
+    component: () => <h1>Página X</h1>,
+  });
+  appRoute.addChildren([...appRoute.children, extra]);
+})();
+
+function setup(
+  initial: string,
+  state: AuthState,
+  retry = vi.fn(),
+  login = vi.fn(),
+) {
   const history = createMemoryHistory({ initialEntries: [initial] });
   const router = createAppRouter(history);
   const tree = (value: AuthContextValue) => (
@@ -40,11 +65,11 @@ function setup(initial: string, state: AuthState, retry = vi.fn()) {
       <AppRouter router={router} />
     </AuthContext>
   );
-  const view = render(tree(auth(state, retry)));
+  const view = render(tree(auth(state, retry, login)));
   return {
     router,
     change: (next: AuthState) =>
-      act(async () => view.rerender(tree(auth(next, retry)))),
+      act(async () => view.rerender(tree(auth(next, retry, login)))),
   };
 }
 
@@ -125,5 +150,34 @@ describe('router', () => {
     await change(authenticated);
     await screen.findByRole('heading', { name: 'Início' });
     expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('keeps query and hash through login and back', async () => {
+    const login = vi.fn(async () => 'ok' as const);
+    const { router, change } = setup(
+      '/x?a=1#h',
+      { status: 'anonymous' },
+      vi.fn(),
+      login,
+    );
+    await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+    expect(router.state.location.search).toEqual({ redirect: '/x?a=1#h' });
+    const u = userEvent.setup();
+    await u.type(screen.getByLabelText('E-mail'), 'ana@helpy.test');
+    await u.type(screen.getByLabelText('Senha'), 'secret');
+    await u.click(screen.getByRole('button', { name: 'Entrar' }));
+    expect(login).toHaveBeenCalled();
+    await change(authenticated);
+    await screen.findByRole('heading', { name: 'Página X' });
+    expect(router.state.location.pathname).toBe('/x');
+    expect(router.state.location.search).toEqual({ a: 1 });
+    expect(router.state.location.hash).toBe('h');
+  });
+
+  it('lands on a redirect target with a query when already signed in', async () => {
+    const { router } = setup('/login?redirect=%2Fx%3Fa%3D1', authenticated);
+    await screen.findByRole('heading', { name: 'Página X' });
+    expect(router.state.location.pathname).toBe('/x');
+    expect(router.state.location.search).toEqual({ a: 1 });
   });
 });
