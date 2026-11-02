@@ -5,9 +5,11 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  useNavigate,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { LoginPage } from '../features/auth/login-page';
 import { safeRedirect } from '../features/auth/safe-redirect';
 import {
   LoadingScreen,
@@ -17,9 +19,15 @@ import { useAuth, type AuthContextValue } from '../features/auth/use-auth';
 
 type RouterContext = { auth: AuthContextValue };
 
-// PLACEHOLDER: Task 5 replaces this with the real login page.
-function LoginPlaceholder() {
-  return <h1>Entrar</h1>;
+function LoginRoute() {
+  const { redirect } = loginRoute.useSearch();
+  const navigate = useNavigate();
+  return (
+    <LoginPage
+      redirect={redirect}
+      navigate={(to) => void navigate({ to, replace: true })}
+    />
+  );
 }
 
 // PLACEHOLDER: Task 6 replaces this with the real home page inside the shell.
@@ -50,7 +58,7 @@ const loginRoute = createRoute({
       throw redirect({ to: safeRedirect(search.redirect), replace: true });
     }
   },
-  component: LoginPlaceholder,
+  component: LoginRoute,
 });
 
 // Protected layout: later slices add their pages as children.

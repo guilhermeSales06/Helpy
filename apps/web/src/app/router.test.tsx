@@ -54,7 +54,7 @@ describe('router', () => {
   it('sends anonymous visitors to /login with the page they wanted', async () => {
     const { router } = setup('/', { status: 'anonymous' });
     expect(
-      await screen.findByRole('heading', { name: 'Entrar' }),
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toEqual({ redirect: '/' });
@@ -62,7 +62,7 @@ describe('router', () => {
 
   it('keeps the wanted page, with its query, in the redirect', async () => {
     const { router } = setup('/login?redirect=%2Fx', { status: 'anonymous' });
-    await screen.findByRole('heading', { name: 'Entrar' });
+    await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
     expect(router.state.location.search).toEqual({ redirect: '/x' });
   });
 
@@ -96,7 +96,7 @@ describe('router', () => {
   it('returns to the original page after login', async () => {
     const { router, change } = setup('/', { status: 'loading' });
     await change({ status: 'anonymous' });
-    await screen.findByRole('heading', { name: 'Entrar' });
+    await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
     await change(authenticated);
     expect(
       await screen.findByRole('heading', { name: 'Início' }),
@@ -118,7 +118,7 @@ describe('router', () => {
     await screen.findByRole('heading', { name: 'Início' });
     const before = router.history.length;
     await change({ status: 'anonymous' });
-    await screen.findByRole('heading', { name: 'Entrar' });
+    await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toEqual({ redirect: '/' });
     expect(router.history.length - before).toBe(0);
