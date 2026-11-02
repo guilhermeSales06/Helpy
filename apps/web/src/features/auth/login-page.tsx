@@ -45,10 +45,10 @@ export function LoginPage({ redirect, navigate }: LoginPageProps) {
 
   return (
     <div className="flex min-h-screen flex-wrap gap-4 bg-white p-4">
-      <section className="flex min-h-[600px] flex-[1_1_420px] flex-col overflow-hidden rounded-[36px] bg-brand px-6 pt-10 sm:px-11">
+      <section className="flex min-h-[600px] flex-[1_1_420px] flex-col overflow-hidden rounded-[36px] bg-brand px-11 pt-10">
         <BrandMark />
         <div className="flex flex-1 flex-col justify-center pt-12 pb-6">
-          <h2 className="max-w-[400px] font-display text-[40px] leading-[1.04] font-semibold tracking-[-0.03em] text-balance text-white sm:text-5xl">
+          <h2 className="max-w-[400px] font-display text-5xl leading-[1.04] font-semibold tracking-[-0.03em] text-balance text-white">
             O sistema que você ama oferecer.
           </h2>
           <p className="mt-5 max-w-[340px] text-[17px] leading-normal font-medium text-white">
