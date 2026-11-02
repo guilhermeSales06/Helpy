@@ -113,7 +113,7 @@ describe('router', () => {
   it('sends authenticated visitors away from /login', async () => {
     const { router } = setup('/login', authenticated);
     expect(
-      await screen.findByRole('heading', { name: 'Início' }),
+      await screen.findByRole('heading', { name: 'Olá, Ana.' }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
   });
@@ -124,7 +124,7 @@ describe('router', () => {
     await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
     await change(authenticated);
     expect(
-      await screen.findByRole('heading', { name: 'Início' }),
+      await screen.findByRole('heading', { name: 'Olá, Ana.' }),
     ).toBeInTheDocument();
     expect(router.state.location.href).toBe('/');
   });
@@ -134,13 +134,13 @@ describe('router', () => {
       `/login?redirect=${encodeURIComponent('https://evil.com')}`,
       authenticated,
     );
-    await screen.findByRole('heading', { name: 'Início' });
+    await screen.findByRole('heading', { name: 'Olá, Ana.' });
     expect(router.state.location.href).toBe('/');
   });
 
   it('does not add history entries when the session expires', async () => {
     const { router, change } = setup('/', authenticated);
-    await screen.findByRole('heading', { name: 'Início' });
+    await screen.findByRole('heading', { name: 'Olá, Ana.' });
     const before = router.history.length;
     await change({ status: 'anonymous' });
     await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
@@ -149,7 +149,7 @@ describe('router', () => {
     // Router behavior (beforeLoad redirects replace), not proof of our flag.
     expect(router.history.length - before).toBe(0);
     await change(authenticated);
-    await screen.findByRole('heading', { name: 'Início' });
+    await screen.findByRole('heading', { name: 'Olá, Ana.' });
     expect(router.state.location.pathname).toBe('/');
   });
 

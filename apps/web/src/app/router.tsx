@@ -9,6 +9,8 @@ import {
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { AppShell } from './app-shell';
+import { HomePage } from './home-page';
 import { LoginPage } from '../features/auth/login-page';
 import { safeRedirect } from '../features/auth/safe-redirect';
 import {
@@ -28,11 +30,6 @@ function LoginRoute() {
       navigate={(to) => void navigate({ to, replace: true })}
     />
   );
-}
-
-// PLACEHOLDER: Task 6 replaces this with the real home page inside the shell.
-function HomePlaceholder() {
-  return <h1>Início</h1>;
 }
 
 function RootGate() {
@@ -62,7 +59,6 @@ const loginRoute = createRoute({
 });
 
 // Protected layout: later slices add their pages as children.
-// PLACEHOLDER: Task 6 swaps the bare Outlet for the app shell.
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_app',
@@ -75,13 +71,13 @@ const appRoute = createRoute({
       });
     }
   },
-  component: Outlet,
+  component: AppShell,
 });
 
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/',
-  component: HomePlaceholder,
+  component: HomePage,
 });
 
 const routeTree = rootRoute.addChildren([
