@@ -62,6 +62,33 @@ jobs:
       run:
         working-directory: apps/web
 
+    # The e2e run logs in against a real API backed by this database.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: helpy
+          POSTGRES_PASSWORD: helpy
+          POSTGRES_DB: helpy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U helpy -d helpy"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Test-only values. NODE_ENV stays unset so the refresh cookie works on http.
+    env:
+      DATABASE_URL: postgresql://helpy:helpy@localhost:5433/helpy
+      DIRECT_URL: postgresql://helpy:helpy@localhost:5433/helpy
+      JWT_ACCESS_SECRET: ci-only-access-secret-0123456789abcdef
+      SEED_ADMIN_NAME: Admin
+      SEED_ADMIN_EMAIL: e2e-admin@helpy.local
+      SEED_ADMIN_PASSWORD: ci-only-Passw0rd!
+      E2E_EMAIL: e2e-admin@helpy.local
+      E2E_PASSWORD: ci-only-Passw0rd!
+
     steps:
       - uses: actions/checkout@v7
 
@@ -77,3 +104,27 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: apps/api
+
+      - name: Migrate and seed the database
+        run: |
+          npm run db:deploy
+          npm run db:seed
+        working-directory: apps/api
+
+      - name: Build and start the API
+        run: |
+          npm run build
+          node dist/main &
+          curl --silent --show-error --fail --retry 30 --retry-delay 1 --retry-connrefused http://localhost:3000/api/v1/health
+        working-directory: apps/api
+        env:
+          PORT: 3000
+          CORS_ORIGINS: http://localhost:4173
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
