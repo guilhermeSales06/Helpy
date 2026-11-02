@@ -138,7 +138,7 @@ describe('router', () => {
     expect(router.state.location.href).toBe('/');
   });
 
-  it('goes to login once when the session expires mid-use, then back', async () => {
+  it('does not add history entries when the session expires', async () => {
     const { router, change } = setup('/', authenticated);
     await screen.findByRole('heading', { name: 'Início' });
     const before = router.history.length;
@@ -146,6 +146,7 @@ describe('router', () => {
     await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toEqual({ redirect: '/' });
+    // Router behavior (beforeLoad redirects replace), not proof of our flag.
     expect(router.history.length - before).toBe(0);
     await change(authenticated);
     await screen.findByRole('heading', { name: 'Início' });
