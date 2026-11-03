@@ -128,6 +128,20 @@ describe('LoginPage', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('shows "Muitas tentativas. Aguarde um minuto e tente de novo." on rate-limited', async () => {
+    login.mockResolvedValue('rate-limited');
+    const { user, email, password, submit } = setup();
+    await user.type(email, 'ana@helpy.test');
+    await user.type(password, 'secret');
+    await user.click(submit);
+    expect(
+      await screen.findByText(
+        'Muitas tentativas. Aguarde um minuto e tente de novo.',
+      ),
+    ).toBeInTheDocument();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('toggles password visibility with an accessible label', async () => {
     const { user, password } = setup();
     expect(password).toHaveAttribute('type', 'password');

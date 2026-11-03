@@ -11,6 +11,7 @@ import { useAuth } from './use-auth';
 
 const SERVER_ERRORS = {
   invalid: 'E-mail ou senha incorretos.',
+  'rate-limited': 'Muitas tentativas. Aguarde um minuto e tente de novo.',
   unavailable: 'Não foi possível entrar. Tente de novo.',
 } as const;
 
