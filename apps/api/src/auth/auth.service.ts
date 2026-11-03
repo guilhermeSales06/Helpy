@@ -9,7 +9,9 @@ import {
   type SelectedUser,
 } from '../users/users.mapper.js';
 import { REFRESH_TOKEN_TTL_MS } from './auth.constants.js';
+import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
 import { hashPassword, verifyPassword } from './password.js';
 
 const hashToken = (token: string) =>
@@ -34,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly users: UsersService,
   ) {}
 
   async login({ email, password }: LoginDto) {
@@ -52,6 +55,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    return this.startSession(user);
+  }
+
+  async register({ name, email, password }: RegisterDto) {
+    const user = await this.users.createClient({
+      name,
+      email,
+      passwordHash: await hashPassword(password),
+    });
     return this.startSession(user);
   }
 

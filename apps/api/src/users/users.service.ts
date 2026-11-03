@@ -45,6 +45,16 @@ export class UsersService {
     return toUserResponse(user);
   }
 
+  // Public sign-up: always a CLIENT, returned raw so the caller can start a session.
+  createClient(data: { name: string; email: string; passwordHash: string }) {
+    return this.rejectDuplicateEmail(
+      this.prisma.user.create({
+        data: { ...data, role: Role.CLIENT },
+        select: userSelect,
+      }),
+    );
+  }
+
   async findAll({ role, active, ...pagination }: ListUsersQueryDto) {
     const where = { role, active } satisfies Prisma.UserWhereInput;
     const [users, total] = await this.prisma.$transaction([

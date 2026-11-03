@@ -37,6 +37,8 @@ Para publicar, siga o [guia de deploy](../../docs/DEPLOY.md).
 
 ## Autenticação para o front-end
 
+`POST /api/v1/auth/register` (`name`, `email`, `password`) cria um cliente e já devolve a sessão, como o login. A senha precisa de 8 a 128 caracteres, com uma letra maiúscula e um número. E-mail repetido dá 409.
+
 1. `POST /api/v1/auth/login` devolve o `accessToken` e grava o refresh token em um cookie httpOnly.
 2. Envie o access token em cada requisição: `Authorization: Bearer <token>`. Ele expira em 15 minutos.
 3. Ao receber 401, chame `POST /api/v1/auth/refresh` para obter um novo token. Se o refresh também devolver 401, mande o usuário para o login.
@@ -48,11 +50,11 @@ Dois cuidados:
 
 ## Perfis
 
-| Perfil | Como é criado | Gestão de usuários (`/users`) |
-| --- | --- | --- |
-| `ADMIN` | Pelo seed | Sim |
-| `TECHNICIAN` | Por um admin | Não |
-| `CLIENT` | Por um admin | Não |
+| Perfil       | Como é criado | Gestão de usuários (`/users`) |
+| ------------ | ------------- | ----------------------------- |
+| `ADMIN`      | Pelo seed     | Sim                           |
+| `TECHNICIAN` | Por um admin  | Não                           |
+| `CLIENT`     | Por um admin  | Não                           |
 
 Usuários são desativados em vez de apagados, para preservar o histórico. A desativação bloqueia o login e o refresh na hora. Um access token já emitido pode continuar válido por até 15 minutos.
 
@@ -60,11 +62,11 @@ Usuários são desativados em vez de apagados, para preservar o histórico. A de
 
 Cada área agrupa categorias (ex.: Hardware → Impressora), e cada técnico atende uma ou mais áreas.
 
-| Perfil | Quais chamados vê |
-| --- | --- |
-| `CLIENT` | Os próprios |
+| Perfil       | Quais chamados vê                                   |
+| ------------ | --------------------------------------------------- |
+| `CLIENT`     | Os próprios                                         |
 | `TECHNICIAN` | Os atribuídos a ele e os sem técnico das suas áreas |
-| `ADMIN` | Todos |
+| `ADMIN`      | Todos                                               |
 
 Um chamado que o usuário não pode ver responde 404, como se não existisse.
 
@@ -76,30 +78,30 @@ Um chamado que o usuário não pode ver responde 404, como se não existisse.
 
 **Mudança de status**
 
-| De | Para | Quem pode |
-| --- | --- | --- |
-| `OPEN` | `IN_PROGRESS` | Técnico atribuído, admin (exige técnico no chamado) |
-| `IN_PROGRESS` | `RESOLVED` | Técnico atribuído, admin |
-| `RESOLVED` | `CLOSED` | Cliente, admin |
-| `RESOLVED` | `IN_PROGRESS` (reabrir) | Cliente, técnico atribuído, admin |
+| De            | Para                    | Quem pode                                           |
+| ------------- | ----------------------- | --------------------------------------------------- |
+| `OPEN`        | `IN_PROGRESS`           | Técnico atribuído, admin (exige técnico no chamado) |
+| `IN_PROGRESS` | `RESOLVED`              | Técnico atribuído, admin                            |
+| `RESOLVED`    | `CLOSED`                | Cliente, admin                                      |
+| `RESOLVED`    | `IN_PROGRESS` (reabrir) | Cliente, técnico atribuído, admin                   |
 
 `CLOSED` é definitivo. Qualquer outra mudança responde 409, e 409 também indica que outra pessoa alterou o chamado ao mesmo tempo: recarregue e tente de novo.
 
 ## Scripts
 
-| Comando | O que faz |
-| --- | --- |
-| `npm run start:dev` | Sobe a API em modo watch |
-| `npm run db:up` / `db:down` | Sobe ou derruba o Postgres local |
-| `npm run db:migrate` | Cria e aplica migrations em desenvolvimento |
-| `npm run db:deploy` | Aplica migrations em produção |
-| `npm run db:seed` | Cria o primeiro admin, sem alterar um que já exista |
-| `npm run db:studio` | Abre o Prisma Studio |
-| `npm test` | Testes unitários |
-| `npm run test:e2e` | Testes e2e, em um banco próprio (`helpy_test`), com o Postgres local no ar |
-| `npm run lint` | Lint com oxlint |
-| `npm run typecheck` | Checa os tipos, incluindo os testes |
-| `npm run format:check` | Confere a formatação com Prettier |
+| Comando                     | O que faz                                                                  |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `npm run start:dev`         | Sobe a API em modo watch                                                   |
+| `npm run db:up` / `db:down` | Sobe ou derruba o Postgres local                                           |
+| `npm run db:migrate`        | Cria e aplica migrations em desenvolvimento                                |
+| `npm run db:deploy`         | Aplica migrations em produção                                              |
+| `npm run db:seed`           | Cria o primeiro admin, sem alterar um que já exista                        |
+| `npm run db:studio`         | Abre o Prisma Studio                                                       |
+| `npm test`                  | Testes unitários                                                           |
+| `npm run test:e2e`          | Testes e2e, em um banco próprio (`helpy_test`), com o Postgres local no ar |
+| `npm run lint`              | Lint com oxlint                                                            |
+| `npm run typecheck`         | Checa os tipos, incluindo os testes                                        |
+| `npm run format:check`      | Confere a formatação com Prettier                                          |
 
 ## Limite de tentativas
 

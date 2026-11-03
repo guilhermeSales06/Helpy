@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  ApiConflictResponse,
+  ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -24,7 +26,7 @@ import {
   CurrentUser,
   type AuthUser,
 } from '../common/decorators/current-user.decorator.js';
-import { LOGIN_THROTTLE } from '../common/throttle.js';
+import { LOGIN_THROTTLE, REGISTER_THROTTLE } from '../common/throttle.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { UserResponseDto } from '../users/dto/user-response.dto.js';
 import { REFRESH_COOKIE_NAME, REFRESH_TOKEN_TTL_MS } from './auth.constants.js';
@@ -34,6 +36,7 @@ import {
   LoginDto,
   LoginResponseDto,
 } from './dto/login.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -57,6 +60,26 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const { refreshToken, ...result } = await this.auth.login(dto);
+    this.setRefreshCookie(response, refreshToken);
+    return result;
+  }
+
+  @Public()
+  @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(REGISTER_THROTTLE)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Sign up as a client, log in and set the refresh token cookie',
+  })
+  @ApiCreatedResponse({ type: LoginResponseDto })
+  @ApiConflictResponse({ description: 'Email already in use' })
+  @ApiTooManyRequestsResponse({ description: 'Too many attempts from this IP' })
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { refreshToken, ...result } = await this.auth.register(dto);
     this.setRefreshCookie(response, refreshToken);
     return result;
   }
