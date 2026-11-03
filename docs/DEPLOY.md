@@ -80,6 +80,14 @@ Front e API em subdomínios diferentes de `vercel.app` contam como sites diferen
 
 O front então chama `/api/v1/...` no próprio domínio, e o navegador vê um site só. Nesse modelo o `CORS_ORIGINS` não é necessário para o site em produção, mas continua útil para o front rodando localmente.
 
+Para publicar o front:
+
+1. Na Vercel, crie um projeto novo a partir deste repositório, com **Root Directory** `apps/web` e **Framework Preset** `Vite`. O build e a pasta de saída (`dist`) são detectados sozinhos.
+2. Confira que o `destination` do rewrite em `apps/web/vercel.json` aponta para o endereço da API (`https://<sua-api>.vercel.app/api/:path*`). Quando a API mudar de endereço, troque o `destination` aí e atualize o teste `vercel-config.test.ts`, que confere esse valor.
+3. Depois do deploy, abra a URL publicada e confira: login, recarregar uma rota interna e sair. Esse é o único teste do rewrite real da Vercel.
+
+Localmente, o `npm run dev` repassa `/api` para `http://localhost:3000`. Se a API estiver em outra porta, defina `VITE_API_TARGET` (por exemplo, `VITE_API_TARGET=http://localhost:3010 npm run dev`).
+
 ## Limitações conhecidas
 
 - **Certificado do banco:** a conexão é criptografada, mas o certificado do servidor não é validado. Para validar, seria preciso incluir o certificado CA do Supabase no projeto.
