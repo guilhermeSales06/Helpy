@@ -31,6 +31,9 @@ Sem o `sslmode`, a conexão não é criptografada.
 | `DIRECT_URL` | Do passo anterior |
 | `JWT_ACCESS_SECRET` | Gere com o comando abaixo |
 | `CORS_ORIGINS` | URL do front, ou deixe vazio se usar o rewrite descrito abaixo |
+| `TRUST_PROXY` | **Obrigatória.** Número de saltos de proxy confiáveis na frente da API. Comece com `1` e confirme com as checagens da seção 6 |
+
+Defina `TRUST_PROXY` **antes do primeiro deploy que inclui o endpoint de cadastro**. Sem ela, o limite de requisições é global: cerca de 5 requisições por minuto de qualquer pessoa bloqueiam o cadastro para todos os visitantes, e 10 bloqueiam o login. Não defina `THROTTLE_DISABLED` na Vercel (veja a seção 6).
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
@@ -92,8 +95,17 @@ Localmente, o `npm run dev` repassa `/api` para `http://localhost:3000`. Se a AP
 
 A API limita tentativas por IP: login 10 por minuto e cadastro (`POST /api/v1/auth/register`) 5 por minuto, com resposta 429 ao passar disso. Atrás da Vercel, e do rewrite do front, todas as requisições chegam de proxies. Sem `TRUST_PROXY`, a API enxergaria o IP do proxy e o limite viraria **global**: poucas pessoas bastariam para travar o login de todo mundo.
 
-- **`TRUST_PROXY`** é o número de saltos de proxy confiáveis na frente da API. Sem a variável, nenhum proxy é confiado. Com a API chamada pelo rewrite do front, há pelo menos dois saltos (o do front e o da API), então comece testando `2`; chamando a API direto, comece com `1`. Um valor menor que o real faz a API ver o IP do proxy (limite global); um maior permite que o visitante forje o IP pelo cabeçalho `X-Forwarded-For` e escape do limite.
-- **Depois do deploy, confira** que o limite é por visitante e não global: faça requisições a partir de duas redes ou aparelhos diferentes (por exemplo, o computador e o celular no 4G). Esgote o limite em um (6 cadastros ou 11 logins seguidos com dados inválidos devem dar 429) e confirme que o outro ainda consegue tentar. Se os dois forem bloqueados juntos, o valor está baixo demais. O valor correto só se confirma na URL publicada.
+- **`TRUST_PROXY`** é o número de saltos de proxy confiáveis na frente da API. Sem a variável, nenhum proxy é confiado. Chamando a API direto pela URL dela, comece com `1`. Com a API chamada pelo rewrite do front, provavelmente são dois saltos (o do front e o da API), mas isso é uma suposição que ninguém verificou: trate `2` apenas como palpite inicial e confirme com as checagens abaixo. Um valor menor que o real faz a API ver o IP do proxy (limite global); um maior permite que o visitante forje o IP pelo cabeçalho `X-Forwarded-For` e escape do limite.
+- **Depois do deploy, confira que o valor não está baixo demais** (limite global). Faça requisições a partir de duas redes ou aparelhos diferentes (por exemplo, o computador e o celular no 4G). Esgote o limite em um e confirme que o outro ainda consegue tentar. Supondo que os limites continuem em 5 (cadastro) e 10 (login) e que as tentativas aconteçam dentro de um minuto, 6 cadastros ou 11 logins seguidos com dados inválidos devem dar 429. Se os dois forem bloqueados juntos, o valor está baixo demais.
+- **Confira também que o valor não está alto demais.** Essa falha é silenciosa: o teste das duas redes passa e o limite parece funcionar, mas qualquer pessoa escapa dele enviando um `X-Forwarded-For` forjado. A API é acessível pelo rewrite do front (dois ou mais saltos) e direto pela URL dela na Vercel (um salto), então um valor ajustado para o rewrite sobra um salto na URL direta. Se isso importa depende de a Vercel sobrescrever ou acrescentar o `X-Forwarded-For`, o que não foi verificado. Rode o teste de falsificação contra a URL direta da API **e** contra a URL do front, trocando `<URL>` por cada uma:
+
+  ```bash
+  for i in $(seq 1 11); do curl -s -o /dev/null -w "%{http_code}\n" -X POST <URL>/api/v1/auth/login -H 'Content-Type: application/json' -H "X-Forwarded-For: 203.0.113.$i" -d '{"email":"x@x.test","password":"x"}'; done
+  ```
+
+  A 11ª resposta deve ser 429. Se não for, o valor está alto demais ou o cabeçalho forjado está sendo repassado. Espere um minuto entre uma URL e outra para o limite zerar.
+- **Se nenhum valor único passar na checagem das duas redes e nas duas de falsificação, o IP do cliente precisa vir de outra fonte.** Isso é uma mudança de código, não de configuração.
+- Refresh, `me`, logout e `/health` nunca respondem 429; só login e cadastro têm limite. Isso ajuda na checagem pós-deploy: um 429 só pode vir dessas duas rotas.
 - **`THROTTLE_DISABLED=true` serve só para testes** (o job `web` do CI usa para os testes e2e no navegador). Nunca defina essa variável na Vercel: em produção o limite fica ligado por padrão.
 
 ## 7. Cadastro público
