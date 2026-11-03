@@ -50,6 +50,20 @@ describe('refreshSession', () => {
     expect(init).toMatchObject({ method: 'POST', credentials: 'include' });
   });
 
+  it('keeps the refresh request alive across page unload', async () => {
+    fetchMock.mockResolvedValue(ok());
+
+    await refreshSession();
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('/api/v1/auth/refresh');
+    expect(init).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+    });
+  });
+
   it('runs inside the cross-tab lock "helpy-refresh"', async () => {
     fetchMock.mockResolvedValue(ok());
 

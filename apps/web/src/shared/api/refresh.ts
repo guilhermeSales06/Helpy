@@ -15,6 +15,12 @@ async function requestRefresh(): Promise<RefreshResult> {
     const response = await fetch(REFRESH_URL, {
       method: 'POST',
       credentials: 'include',
+      // The API rotates the refresh token on every call. If the page unloads
+      // mid-request the new Set-Cookie can be lost and the next page sends a
+      // revoked token, which ends all sessions. keepalive lets the browser
+      // finish the request after unload. This narrows the window but does not
+      // close it; a server-side grace window for the previous token does.
+      keepalive: true,
     });
     if (response.status === 401) {
       setAccessToken(null);
