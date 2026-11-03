@@ -100,3 +100,11 @@ Um chamado que o usuário não pode ver responde 404, como se não existisse.
 | `npm run lint` | Lint com oxlint |
 | `npm run typecheck` | Checa os tipos, incluindo os testes |
 | `npm run format:check` | Confere a formatação com Prettier |
+
+## Limite de tentativas
+
+`POST /auth/login` aceita 10 tentativas por minuto por IP (o cadastro, 5). Passando disso, a API responde 429. Nenhuma outra rota é limitada.
+
+- **O contador fica na memória de cada instância.** Em serverless (Vercel) isso não é global: cada instância conta separado, então o limite é uma proteção parcial, não exata.
+- `THROTTLE_DISABLED=true` desliga o limite (usado nos testes e2e). Em produção ele fica ligado por padrão.
+- `TRUST_PROXY` é o número de proxies confiáveis na frente da API. Sem ele, o IP contado é o da conexão direta; atrás de um proxy, todos pareceriam o mesmo IP. Na Vercel o valor certo só se confirma testando a URL publicada.

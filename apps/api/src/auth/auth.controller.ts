@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -14,13 +15,16 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import {
   CurrentUser,
   type AuthUser,
 } from '../common/decorators/current-user.decorator.js';
+import { LOGIN_THROTTLE } from '../common/throttle.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { UserResponseDto } from '../users/dto/user-response.dto.js';
 import { REFRESH_COOKIE_NAME, REFRESH_TOKEN_TTL_MS } from './auth.constants.js';
@@ -41,10 +45,13 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(LOGIN_THROTTLE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in and set the refresh token cookie' })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiTooManyRequestsResponse({ description: 'Too many attempts from this IP' })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) response: Response,

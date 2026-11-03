@@ -20,6 +20,8 @@ export default defineConfig({
       DIRECT_URL: TEST_DATABASE_URL,
       JWT_ACCESS_SECRET: TEST_JWT_SECRET,
       CORS_ORIGINS: TEST_CORS_ORIGIN,
+      // Only throttle.e2e-spec.ts turns the limiter back on.
+      THROTTLE_DISABLED: 'true',
     },
   },
 });
