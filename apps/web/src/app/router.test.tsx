@@ -31,6 +31,7 @@ function auth(
   return {
     state,
     login,
+    register: vi.fn(),
     logout: vi.fn(),
     retry,
   };

@@ -15,6 +15,8 @@ import {
   type AuthContextValue,
   type AuthState,
   type LoginResult,
+  type RegisterInput,
+  type RegisterResult,
 } from './use-auth';
 
 type Settled = Exclude<AuthState, { status: 'loading' }>;
@@ -77,7 +79,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: 'authenticated', user: data.user });
           return 'ok';
         }
-        return response.status === 401 ? 'invalid' : 'unavailable';
+        if (response.status === 401) return 'invalid';
+        return response.status === 429 ? 'rate-limited' : 'unavailable';
+      } catch {
+        return 'unavailable';
+      }
+    },
+    [],
+  );
+
+  const register = useCallback(
+    async (input: RegisterInput): Promise<RegisterResult> => {
+      try {
+        const { data, response } = await api.POST('/api/v1/auth/register', {
+          body: input,
+        });
+        if (data) {
+          setAccessToken(data.accessToken);
+          setState({ status: 'authenticated', user: data.user });
+          return 'ok';
+        }
+        if (response.status === 409) return 'email-taken';
+        if (response.status === 429) return 'rate-limited';
+        return response.status === 400 ? 'invalid' : 'unavailable';
       } catch {
         return 'unavailable';
       }
@@ -99,8 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, login, logout, retry }),
-    [state, login, logout, retry],
+    () => ({ state, login, register, logout, retry }),
+    [state, login, register, logout, retry],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

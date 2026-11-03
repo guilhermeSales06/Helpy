@@ -20,6 +20,12 @@ const user: User = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const newAccount = {
+  name: 'Ana',
+  email: 'ana@helpy.test',
+  password: 'secret-123',
+};
+
 type Handler = (request: Request) => Response | Promise<Response>;
 
 let routes: Record<string, Handler>;
@@ -214,6 +220,124 @@ describe('AuthProvider', () => {
     expect(outcome).toBe('ok');
     expect(getAccessToken()).toBe('token-2');
     expect(result.current.state).toEqual({ status: 'authenticated', user });
+  });
+
+  it('login returns rate-limited on 429', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/login'] = () => status(429);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.login('ana@helpy.test', 'secret');
+    });
+
+    expect(outcome).toBe('rate-limited');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+  });
+
+  it('register stores the token and the user, like login', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    let body: unknown;
+    routes['/api/v1/auth/register'] = async (request) => {
+      body = await request.json();
+      return json({ accessToken: 'token-2', user }, 201);
+    };
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('ok');
+    expect(body).toEqual(newAccount);
+    expect(getAccessToken()).toBe('token-2');
+    expect(result.current.state).toEqual({ status: 'authenticated', user });
+  });
+
+  it('register returns email-taken on 409 and stays anonymous', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/register'] = () => status(409);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('email-taken');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('register returns rate-limited on 429', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/register'] = () => status(429);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('rate-limited');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('register returns invalid on 400', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/register'] = () => status(400);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('invalid');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('register returns unavailable on a 500', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/register'] = () => status(500);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('unavailable');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('register returns unavailable on a network error', async () => {
+    routes['/api/v1/auth/refresh'] = () => status(401);
+    routes['/api/v1/auth/register'] = () => {
+      throw new TypeError('Failed to fetch');
+    };
+    const { result } = setup();
+    await waitFor(() => expect(result.current.state.status).toBe('anonymous'));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.register(newAccount);
+    });
+
+    expect(outcome).toBe('unavailable');
+    expect(result.current.state).toEqual({ status: 'anonymous' });
+    expect(getAccessToken()).toBeNull();
   });
 
   it('logout clears the token and becomes anonymous even if the request fails', async () => {

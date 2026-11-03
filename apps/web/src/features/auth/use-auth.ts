@@ -9,11 +9,17 @@ export type AuthState =
   | { status: 'anonymous' }
   | { status: 'authenticated'; user: User };
 
-export type LoginResult = 'ok' | 'invalid' | 'unavailable';
+export type LoginResult = 'ok' | 'invalid' | 'rate-limited' | 'unavailable';
+
+export type RegisterResult =
+  'ok' | 'email-taken' | 'rate-limited' | 'invalid' | 'unavailable';
+
+export type RegisterInput = { name: string; email: string; password: string };
 
 export type AuthContextValue = {
   state: AuthState;
   login(email: string, password: string): Promise<LoginResult>;
+  register(input: RegisterInput): Promise<RegisterResult>;
   logout(): Promise<void>;
   retry(): void;
 };
