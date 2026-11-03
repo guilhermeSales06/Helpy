@@ -31,6 +31,7 @@ function auth(
   return {
     state,
     login,
+    register: vi.fn(),
     logout: vi.fn(),
     retry,
   };
@@ -180,5 +181,44 @@ describe('router', () => {
     await screen.findByRole('heading', { name: 'Página X' });
     expect(router.state.location.pathname).toBe('/x');
     expect(router.state.location.search).toEqual({ a: 1 });
+  });
+
+  it('an authenticated visitor on /cadastro is sent away', async () => {
+    const { router } = setup('/cadastro', authenticated);
+    await screen.findByRole('heading', { name: 'Olá, Ana.' });
+    expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('sends an authenticated visitor on /cadastro to the safe redirect', async () => {
+    const { router } = setup('/cadastro?redirect=%2Fx', authenticated);
+    await screen.findByRole('heading', { name: 'Página X' });
+    expect(router.state.location.pathname).toBe('/x');
+  });
+
+  it('keeps /cadastro?redirect=https://site-externo.com inside Helpy', async () => {
+    const { router } = setup(
+      `/cadastro?redirect=${encodeURIComponent('https://site-externo.com')}`,
+      authenticated,
+    );
+    await screen.findByRole('heading', { name: 'Olá, Ana.' });
+    expect(router.state.location.href).toBe('/');
+  });
+
+  it('an anonymous visitor can open /cadastro and /login links to it', async () => {
+    const { router } = setup('/login?redirect=%2Fx', { status: 'anonymous' });
+    const u = userEvent.setup();
+    await u.click(await screen.findByRole('link', { name: 'Criar conta' }));
+    await screen.findByRole('heading', { name: 'Crie sua conta' });
+    expect(router.state.location.pathname).toBe('/cadastro');
+    expect(router.state.location.search).toEqual({ redirect: '/x' });
+    await u.click(screen.getByRole('link', { name: 'Entrar' }));
+    await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+    expect(router.state.location.search).toEqual({ redirect: '/x' });
+  });
+
+  it('opens /cadastro directly for an anonymous visitor', async () => {
+    const { router } = setup('/cadastro', { status: 'anonymous' });
+    await screen.findByRole('heading', { name: 'Crie sua conta' });
+    expect(router.state.location.pathname).toBe('/cadastro');
   });
 });

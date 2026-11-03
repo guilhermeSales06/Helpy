@@ -3,9 +3,15 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Role } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { toUserResponse, userSelect } from '../users/users.mapper.js';
+import {
+  toUserResponse,
+  userSelect,
+  type SelectedUser,
+} from '../users/users.mapper.js';
 import { REFRESH_TOKEN_TTL_MS } from './auth.constants.js';
+import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
 import { hashPassword, verifyPassword } from './password.js';
 
 const hashToken = (token: string) =>
@@ -30,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly users: UsersService,
   ) {}
 
   async login({ email, password }: LoginDto) {
@@ -48,17 +55,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.prisma.refreshToken.deleteMany({
-      where: { userId: user.id, expiresAt: { lt: new Date() } },
-    });
-    const refresh = newRefreshToken(user.id);
-    await this.prisma.refreshToken.create({ data: refresh.data });
+    return this.startSession(user);
+  }
 
-    return {
-      accessToken: await this.signAccessToken(user.id, user.role),
-      refreshToken: refresh.token,
-      user: toUserResponse(user),
-    };
+  async register({ name, email, password }: RegisterDto) {
+    const user = await this.users.createClient({
+      name,
+      email,
+      passwordHash: await hashPassword(password),
+    });
+    return this.startSession(user);
   }
 
   async refresh(token: string | undefined) {
@@ -117,6 +123,21 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     throw new UnauthorizedException();
+  }
+
+  // Shared by login and register: both end with the person holding a session.
+  private async startSession(user: SelectedUser) {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: user.id, expiresAt: { lt: new Date() } },
+    });
+    const refresh = newRefreshToken(user.id);
+    await this.prisma.refreshToken.create({ data: refresh.data });
+
+    return {
+      accessToken: await this.signAccessToken(user.id, user.role),
+      refreshToken: refresh.token,
+      user: toUserResponse(user),
+    };
   }
 
   private signAccessToken(userId: string, role: Role) {

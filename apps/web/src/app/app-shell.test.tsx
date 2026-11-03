@@ -29,6 +29,7 @@ async function renderShell(user: User = makeUser(), logout = vi.fn()) {
   const value: AuthContextValue = {
     state: { status: 'authenticated', user },
     login: vi.fn(),
+    register: vi.fn(),
     logout,
     retry: vi.fn(),
   };

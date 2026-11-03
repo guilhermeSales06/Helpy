@@ -124,6 +124,8 @@ jobs:
         env:
           PORT: 3000
           CORS_ORIGINS: http://localhost:4173
+          # Test-only: the browser tests sign up and log in many times from one IP.
+          THROTTLE_DISABLED: 'true'
 
       - run: npx playwright install --with-deps chromium
 

@@ -1,7 +1,9 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { parseTrustProxy } from './common/trust-proxy.js';
 
 // Vercel's function bundle leaves out the files of swagger-ui-dist, because they
 // are only read at runtime, so /docs loads them from a CDN instead.
@@ -11,6 +13,13 @@ const SWAGGER_UI_CDN = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.0';
 // so all three expose the same routes.
 export function setupApp(app: INestApplication) {
   const config = app.get(ConfigService);
+
+  // Number of proxy hops whose X-Forwarded-For can be trusted, so req.ip (used
+  // by the rate limiter) is the real client. Absent: trust none.
+  const proxyHops = parseTrustProxy(config.get<string>('TRUST_PROXY'));
+  if (proxyHops !== undefined) {
+    (app as NestExpressApplication).set('trust proxy', proxyHops);
+  }
 
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
