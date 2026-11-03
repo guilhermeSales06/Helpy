@@ -19,7 +19,7 @@ export const userSelect = {
   },
 } satisfies Prisma.UserSelect;
 
-type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>;
+export type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>;
 
 export function toUserResponse(user: SelectedUser): UserResponseDto {
   return {
