@@ -88,6 +88,18 @@ Para publicar o front:
 
 Localmente, o `npm run dev` repassa `/api` para `http://localhost:3000`. Se a API estiver em outra porta, defina `VITE_API_TARGET` (por exemplo, `VITE_API_TARGET=http://localhost:3010 npm run dev`).
 
+## 6. Limite de requisições e `TRUST_PROXY`
+
+A API limita tentativas por IP: login 10 por minuto e cadastro (`POST /api/v1/auth/register`) 5 por minuto, com resposta 429 ao passar disso. Atrás da Vercel, e do rewrite do front, todas as requisições chegam de proxies. Sem `TRUST_PROXY`, a API enxergaria o IP do proxy e o limite viraria **global**: poucas pessoas bastariam para travar o login de todo mundo.
+
+- **`TRUST_PROXY`** é o número de saltos de proxy confiáveis na frente da API. Sem a variável, nenhum proxy é confiado. Com a API chamada pelo rewrite do front, há pelo menos dois saltos (o do front e o da API), então comece testando `2`; chamando a API direto, comece com `1`. Um valor menor que o real faz a API ver o IP do proxy (limite global); um maior permite que o visitante forje o IP pelo cabeçalho `X-Forwarded-For` e escape do limite.
+- **Depois do deploy, confira** que o limite é por visitante e não global: faça requisições a partir de duas redes ou aparelhos diferentes (por exemplo, o computador e o celular no 4G). Esgote o limite em um (6 cadastros ou 11 logins seguidos com dados inválidos devem dar 429) e confirme que o outro ainda consegue tentar. Se os dois forem bloqueados juntos, o valor está baixo demais. O valor correto só se confirma na URL publicada.
+- **`THROTTLE_DISABLED=true` serve só para testes** (o job `web` do CI usa para os testes e2e no navegador). Nunca defina essa variável na Vercel: em produção o limite fica ligado por padrão.
+
+## 7. Cadastro público
+
+O `POST /api/v1/auth/register` cria uma conta de cliente e já abre a sessão. Esta entrega **não adicionou migration** (conferido em `apps/api/prisma/migrations`): basta publicar a nova versão da API, sem mudança no banco. Contas criadas ali aparecem no banco de produção, que é de demonstração e pode ser limpo periodicamente.
+
 ## Limitações conhecidas
 
 - **Certificado do banco:** a conexão é criptografada, mas o certificado do servidor não é validado. Para validar, seria preciso incluir o certificado CA do Supabase no projeto.
