@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from '@tanstack/react-router';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { Button } from '../../shared/ui/button';
 import { PasswordField } from '../../shared/ui/password-field';
@@ -100,6 +101,16 @@ export function LoginPage({ redirect, navigate }: LoginPageProps) {
           <Button type="submit" disabled={isSubmitting} className="mt-1">
             {isSubmitting ? 'Entrando…' : 'Entrar'}
           </Button>
+          <p className="mt-1 text-center text-[14.5px] text-secondary">
+            Ainda não tem conta?{' '}
+            <Link
+              to="/cadastro"
+              search={redirect ? { redirect } : {}}
+              className="rounded-sm font-semibold text-link outline-none hover:underline focus-visible:ring-4 focus-visible:ring-focus"
+            >
+              Criar conta
+            </Link>
+          </p>
         </form>
       </section>
     </div>

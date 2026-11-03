@@ -8,6 +8,11 @@ const login =
   vi.fn<(email: string, password: string) => Promise<LoginResult>>();
 
 vi.mock('./use-auth', () => ({ useAuth: () => ({ login }) }));
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
+}));
 
 const navigate = vi.fn();
 
@@ -191,12 +196,20 @@ describe('LoginPage', () => {
     expect(password).toHaveAttribute('placeholder', 'Sua senha');
   });
 
-  it('shows no Google, Apple, forgot password or sign up controls', () => {
+  it('links to the signup page', () => {
+    setup();
+    expect(screen.getByText(/ainda não tem conta/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Criar conta' })).toHaveAttribute(
+      'href',
+      '/cadastro',
+    );
+  });
+
+  it('shows no Google, Apple or forgot password controls', () => {
     setup();
     expect(screen.queryByText(/google|apple/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/esqueci/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/criar conta/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/ou continue com/i)).not.toBeInTheDocument();
-    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.queryAllByRole('link')).toHaveLength(1);
   });
 });
