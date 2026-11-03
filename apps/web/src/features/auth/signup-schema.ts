@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
 export const PASSWORD_RULES = [
-  { label: '8+ caracteres', test: (p: string) => p.length >= 8 },
+  {
+    label: '8+ caracteres',
+    // Code points, not UTF-16 units: the API counts an emoji as one character.
+    test: (p: string) => {
+      const length = [...p].length;
+      return length >= 8 && length <= 128;
+    },
+  },
   { label: 'Uma letra maiúscula', test: (p: string) => /[A-Z]/.test(p) },
   { label: 'Um número', test: (p: string) => /\d/.test(p) },
 ] as const;

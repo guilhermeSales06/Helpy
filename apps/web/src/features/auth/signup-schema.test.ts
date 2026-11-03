@@ -85,4 +85,21 @@ describe('signupSchema', () => {
     ]);
     expect(passwordRules('Abcdefg1').every((r) => r.ok)).toBe(true);
   });
+
+  it('counts the 8-128 range in code points, like the API', () => {
+    const long = (n: number) => 'A1' + 'a'.repeat(n - 2);
+    const ok = (password: string) =>
+      signupSchema.safeParse({
+        ...valid,
+        password,
+        confirmPassword: password,
+      }).success;
+    expect(ok(long(128))).toBe(true);
+    expect(ok(long(129))).toBe(false);
+    expect(ok('Abcde1😀')).toBe(false);
+    expect(ok('Abcde1😀😀')).toBe(true);
+    expect(ok('Abcdef12')).toBe(true);
+    expect(passwordRules(long(129))[0].ok).toBe(false);
+    expect(passwordRules(long(128))[0].ok).toBe(true);
+  });
 });
