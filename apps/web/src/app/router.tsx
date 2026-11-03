@@ -12,6 +12,7 @@ import {
 import { AppShell } from './app-shell';
 import { HomePage } from './home-page';
 import { LoginPage } from '../features/auth/login-page';
+import { SignupPage } from '../features/auth/signup-page';
 import { safeRedirect } from '../features/auth/safe-redirect';
 import {
   LoadingScreen,
@@ -26,6 +27,17 @@ function LoginRoute() {
   const navigate = useNavigate();
   return (
     <LoginPage
+      redirect={redirect}
+      navigate={(to) => void navigate({ to, replace: true })}
+    />
+  );
+}
+
+function SignupRoute() {
+  const { redirect } = signupRoute.useSearch();
+  const navigate = useNavigate();
+  return (
+    <SignupPage
       redirect={redirect}
       navigate={(to) => void navigate({ to, replace: true })}
     />
@@ -58,6 +70,14 @@ const loginRoute = createRoute({
   component: LoginRoute,
 });
 
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cadastro',
+  validateSearch: loginRoute.options.validateSearch,
+  beforeLoad: loginRoute.options.beforeLoad,
+  component: SignupRoute,
+});
+
 // Protected layout: later slices add their pages as children.
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -82,6 +102,7 @@ const homeRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  signupRoute,
   appRoute.addChildren([homeRoute]),
 ]);
 
