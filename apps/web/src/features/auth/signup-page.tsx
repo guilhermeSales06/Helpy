@@ -11,8 +11,9 @@ import { signupSchema, type SignupValues } from './signup-schema';
 import { safeRedirect } from './safe-redirect';
 import { useAuth } from './use-auth';
 
+const EMAIL_TAKEN = 'Já existe uma conta com este e-mail.';
+
 const SERVER_ERRORS = {
-  'email-taken': 'Já existe uma conta com este e-mail.',
   'rate-limited': 'Muitas tentativas. Aguarde um minuto e tente de novo.',
   invalid: 'Revise os dados e tente de novo.',
   unavailable: 'Não foi possível criar a conta. Tente de novo.',
@@ -33,6 +34,7 @@ export function SignupPage({ redirect, navigate }: SignupPageProps) {
     register,
     handleSubmit,
     control,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({ resolver: zodResolver(signupSchema) });
   const password = useWatch({ control, name: 'password' }) ?? '';
@@ -44,7 +46,9 @@ export function SignupPage({ redirect, navigate }: SignupPageProps) {
     try {
       const result = await registerAccount({ name, email, password });
       if (result === 'ok') navigate(safeRedirect(redirect));
-      else setServerError(SERVER_ERRORS[result]);
+      else if (result === 'email-taken') {
+        setError('email', { type: 'server', message: EMAIL_TAKEN });
+      } else setServerError(SERVER_ERRORS[result]);
     } finally {
       busy.current = false;
     }

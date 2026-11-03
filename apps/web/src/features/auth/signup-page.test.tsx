@@ -95,14 +95,32 @@ describe('SignupPage', () => {
     const f = setup();
     await fill(f);
     await f.user.click(f.submit);
-    expect(
-      await screen.findByText('Já existe uma conta com este e-mail.'),
-    ).toBeInTheDocument();
+    const message = 'Já existe uma conta com este e-mail.';
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(f.email).toHaveAttribute('aria-invalid', 'true');
+    expect(f.email).toHaveAccessibleDescription(message);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(f.name).toHaveValue('Ana Souza');
     expect(f.email).toHaveValue('ana@helpy.test');
     expect(f.password).toHaveValue('Senha123');
     expect(f.confirm).toHaveValue('Senha123');
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('clears the e-mail taken error when the e-mail is edited', async () => {
+    register.mockResolvedValue('email-taken');
+    const f = setup();
+    await fill(f);
+    await f.user.click(f.submit);
+    await screen.findByText('Já existe uma conta com este e-mail.');
+    await f.user.clear(f.email);
+    await f.user.type(f.email, 'outra@helpy.test');
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Já existe uma conta com este e-mail.'),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(f.email).not.toHaveAttribute('aria-invalid'));
   });
 
   it.each([
