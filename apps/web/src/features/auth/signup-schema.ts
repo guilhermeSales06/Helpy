@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const PASSWORD_RULES = [
   { label: '8+ caracteres', test: (p: string) => p.length >= 8 },
-  { label: 'Uma letra maiúscula', test: (p: string) => /\p{Lu}/u.test(p) },
+  { label: 'Uma letra maiúscula', test: (p: string) => /[A-Z]/.test(p) },
   { label: 'Um número', test: (p: string) => /\d/.test(p) },
 ] as const;
 

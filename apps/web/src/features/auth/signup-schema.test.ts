@@ -39,14 +39,31 @@ describe('signupSchema', () => {
     );
   });
 
-  it.each([['Senha12'], ['senha1234'], ['SenhaSenha']])(
-    'rejects a password that fails any rule: %j',
-    (password) => {
-      expect(
-        messages({ ...valid, password, confirmPassword: password }),
-      ).toContain('A senha ainda não atende a todos os requisitos.');
-    },
-  );
+  it.each([
+    ['Senha12'],
+    ['senha1234'],
+    ['SenhaSenha'],
+    ['Éabcdef1'],
+    ['éabcdef1'],
+  ])('rejects a password that fails any rule: %j', (password) => {
+    expect(
+      messages({ ...valid, password, confirmPassword: password }),
+    ).toContain('A senha ainda não atende a todos os requisitos.');
+  });
+
+  it('accepts a password that meets every rule', () => {
+    expect(
+      signupSchema.safeParse({
+        ...valid,
+        password: 'Abcdef12',
+        confirmPassword: 'Abcdef12',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('only counts A-Z as uppercase, like the API', () => {
+    expect(passwordRules('Éabcdef1')[1].ok).toBe(false);
+  });
 
   it('rejects confirmation that differs', () => {
     expect(messages({ ...valid, confirmPassword: 'Senha124' })).toEqual([
