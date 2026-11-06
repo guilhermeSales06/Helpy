@@ -521,17 +521,18 @@ export interface components {
             data: components["schemas"]["TicketResponseDto"][];
             meta: components["schemas"]["PaginationMetaDto"];
         };
+        TicketStatusCountsDto: {
+            OPEN: number;
+            IN_PROGRESS: number;
+            PENDING: number;
+            RESOLVED: number;
+            CLOSED: number;
+        };
         TicketCountsResponseDto: {
             /** @description All visible tickets that match */
             total: number;
             /** @description Tickets per status, 0 where there are none */
-            byStatus?: {
-                OPEN: number;
-                IN_PROGRESS: number;
-                RESOLVED: number;
-                CLOSED: number;
-                PENDING: number;
-            };
+            byStatus: components["schemas"]["TicketStatusCountsDto"];
         };
         AssignTicketDto: {
             /** Format: uuid */
