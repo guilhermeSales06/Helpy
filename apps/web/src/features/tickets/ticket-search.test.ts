@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTicketSearch, toApiQuery } from './ticket-search';
+import { parseTicketSearch, restrictSearch, toApiQuery } from './ticket-search';
 
 const ME = '6f1c1c8e-0000-4000-8000-0000000000a1';
 const TECH = '6f1c1c8e-0000-4000-8000-0000000000b2';
@@ -170,5 +170,32 @@ describe('toApiQuery', () => {
 
   it('leaves out what is not set', () => {
     expect(toApiQuery(base, ME)).toEqual({ sort: 'newest', page: 1 });
+  });
+});
+
+describe('restrictSearch', () => {
+  const search = { sort: 'newest', page: 1 } as const;
+
+  it('drops a technician id for everyone but an admin', () => {
+    const withTech = { ...search, assignee: TECH };
+    expect(restrictSearch(withTech, 'ADMIN').assignee).toBe(TECH);
+    expect(restrictSearch(withTech, 'TECHNICIAN').assignee).toBeUndefined();
+    expect(restrictSearch(withTech, 'CLIENT').assignee).toBeUndefined();
+  });
+
+  it('drops "me" for an admin, who does not take tickets', () => {
+    const mine = { ...search, assignee: 'me' };
+    expect(restrictSearch(mine, 'ADMIN').assignee).toBeUndefined();
+    expect(restrictSearch(mine, 'TECHNICIAN').assignee).toBe('me');
+  });
+
+  it('keeps "none" and the other filters', () => {
+    const queue = { ...search, assignee: 'none', priority: 'HIGH' } as const;
+    expect(restrictSearch(queue, 'ADMIN')).toEqual(queue);
+    expect(restrictSearch(queue, 'TECHNICIAN')).toEqual(queue);
+  });
+
+  it('returns the same object when nothing changes', () => {
+    expect(restrictSearch(search, 'ADMIN')).toBe(search);
   });
 });

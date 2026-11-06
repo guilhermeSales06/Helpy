@@ -1,4 +1,5 @@
 import type { operations } from '../../shared/api/schema';
+import type { User } from '../auth/use-auth';
 import {
   STATUS_LABELS,
   PRIORITY_LABELS,
@@ -112,4 +113,21 @@ export function toApiQuery(search: TicketSearch, me: string): ApiTicketQuery {
     sort,
     page,
   };
+}
+
+/**
+ * Takes out what this role cannot use. A technician id is for admins only,
+ * and an admin does not take tickets, so `me` means nothing to them. The
+ * same object comes back when there is nothing to take out.
+ */
+export function restrictSearch(
+  search: TicketSearch,
+  role: User['role'],
+): TicketSearch {
+  const { assignee } = search;
+  const allowed =
+    assignee === undefined ||
+    assignee === 'none' ||
+    (assignee === 'me' ? role !== 'ADMIN' : role === 'ADMIN');
+  return allowed ? search : { ...search, assignee: undefined };
 }

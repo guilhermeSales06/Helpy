@@ -1,4 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +8,7 @@ import {
   type AuthContextValue,
   type User,
 } from '../features/auth/use-auth';
+import { mockApi } from '../test/ticket-test-utils';
 import { AppRouter, createAppRouter } from './router';
 
 function makeUser(overrides: Partial<User> = {}): User {
@@ -40,10 +42,15 @@ async function renderShell(
   const router = createAppRouter(
     createMemoryHistory({ initialEntries: [path] }),
   );
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const tree = (
-    <AuthContext value={value}>
-      <AppRouter router={router} />
-    </AuthContext>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext value={value}>
+        <AppRouter router={router} />
+      </AuthContext>
+    </QueryClientProvider>
   );
   const view = await act(async () => render(tree));
   await screen.findByRole('navigation', { name: 'Principal' });
@@ -58,12 +65,14 @@ function setWidth(width: number) {
 }
 
 beforeEach(() => {
+  mockApi();
   localStorage.clear();
   setWidth(1280);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('app shell', () => {

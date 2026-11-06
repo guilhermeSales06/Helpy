@@ -1,13 +1,15 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRoute } from '@tanstack/react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AuthContext,
   type AuthContextValue,
   type AuthState,
   type User,
 } from '../features/auth/use-auth';
+import { mockApi } from '../test/ticket-test-utils';
 import { AppRouter, createAppRouter } from './router';
 
 const user: User = {
@@ -61,10 +63,15 @@ function setup(
 ) {
   const history = createMemoryHistory({ initialEntries: [initial] });
   const router = createAppRouter(history);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const tree = (value: AuthContextValue) => (
-    <AuthContext value={value}>
-      <AppRouter router={router} />
-    </AuthContext>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext value={value}>
+        <AppRouter router={router} />
+      </AuthContext>
+    </QueryClientProvider>
   );
   const view = render(tree(auth(state, retry, login)));
   return {
@@ -83,6 +90,15 @@ function listSearch(router: ReturnType<typeof createAppRouter>) {
 }
 
 const TICKET_ID = '6f1c1c8e-0000-4000-8000-0000000000c3';
+
+// The ticket list asks the API for its data; here it always finds none.
+beforeEach(() => {
+  mockApi();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('router', () => {
   it('sends anonymous visitors to /login with the page they wanted', async () => {
@@ -264,7 +280,7 @@ describe('router', () => {
         '/chamados?status=IN_PROGRESS&assignee=me&q=rede&sort=priority&page=2',
         authenticated,
       );
-      await screen.findByRole('heading', { name: 'Chamados' });
+      await screen.findByRole('heading', { name: 'Meus chamados' });
       expect(router.state.location.search).toEqual({
         status: 'IN_PROGRESS',
         assignee: 'me',
