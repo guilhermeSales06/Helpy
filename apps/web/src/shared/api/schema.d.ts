@@ -225,6 +225,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count the visible tickets by status
+         * @description Takes the same filters as the list, except status, sort, page and limit, and follows the same visibility rules.
+         */
+        get: operations["TicketsController_counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets/{id}": {
         parameters: {
             query?: never;
@@ -239,6 +259,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{id}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Take an unassigned OPEN ticket from the queue (technicians only)
+         * @description Sets the caller as the technician and moves the ticket to IN_PROGRESS. Only tickets of the technician areas can be taken.
+         */
+        patch: operations["TicketsController_take"];
+        trace?: never;
+    };
+    "/api/v1/tickets/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Give an IN_PROGRESS or PENDING ticket back to the queue (assigned technician only)
+         * @description Removes the technician and moves the ticket back to OPEN.
+         */
+        patch: operations["TicketsController_release"];
         trace?: never;
     };
     "/api/v1/tickets/{id}/assign": {
@@ -273,7 +333,7 @@ export interface paths {
         head?: never;
         /**
          * Move the ticket to another status
-         * @description OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.
+         * @description OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED, IN_PROGRESS → PENDING (waiting for the requester) and PENDING → IN_PROGRESS: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.
          */
         patch: operations["TicketsController_changeStatus"];
         trace?: never;
@@ -426,7 +486,13 @@ export interface components {
             priority: components["schemas"]["TicketPriority"];
         };
         /** @enum {string} */
-        TicketStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+        TicketStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "PENDING";
+        TicketClientDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+        };
         TicketPersonDto: {
             /** Format: uuid */
             id: string;
@@ -435,11 +501,13 @@ export interface components {
         TicketResponseDto: {
             /** Format: uuid */
             id: string;
+            /** @description Sequential number shown as #<number> */
+            number: number;
             title: string;
             description: string;
             status: components["schemas"]["TicketStatus"];
             priority: components["schemas"]["TicketPriority"];
-            client: components["schemas"]["TicketPersonDto"];
+            client: components["schemas"]["TicketClientDto"];
             technician: components["schemas"]["TicketPersonDto"] | null;
             category: components["schemas"]["CategoryResponseDto"];
             /** Format: date-time */
@@ -452,6 +520,18 @@ export interface components {
         TicketListResponseDto: {
             data: components["schemas"]["TicketResponseDto"][];
             meta: components["schemas"]["PaginationMetaDto"];
+        };
+        TicketCountsResponseDto: {
+            /** @description All visible tickets that match */
+            total: number;
+            /** @description Tickets per status, 0 where there are none */
+            byStatus?: {
+                OPEN: number;
+                IN_PROGRESS: number;
+                RESOLVED: number;
+                CLOSED: number;
+                PENDING: number;
+            };
         };
         AssignTicketDto: {
             /** Format: uuid */
@@ -1168,6 +1248,10 @@ export interface operations {
                 technicianId?: string;
                 /** @description Only tickets with (false) or without (true) a technician */
                 unassigned?: boolean;
+                /** @description Text in the title (case-insensitive), or a ticket number with an optional # */
+                q?: string;
+                /** @description newest: created, newest first. updated: most recently updated first. oldest: created, oldest first. priority: highest priority first, then oldest. */
+                sort?: "newest" | "updated" | "oldest" | "priority";
             };
             header?: never;
             path?: never;
@@ -1227,6 +1311,39 @@ export interface operations {
             };
         };
     };
+    TicketsController_counts: {
+        parameters: {
+            query?: {
+                priority?: components["schemas"]["TicketPriority"];
+                categoryId?: string;
+                technicianId?: string;
+                /** @description Only tickets with (false) or without (true) a technician */
+                unassigned?: boolean;
+                /** @description Text in the title (case-insensitive), or a ticket number with an optional # */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCountsResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TicketsController_findOne: {
         parameters: {
             query?: never;
@@ -1254,6 +1371,102 @@ export interface operations {
             };
             /** @description Unknown or not visible to the caller */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TicketsController_take: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires the TECHNICIAN role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown or outside the caller areas */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not OPEN, or already taken (also by a simultaneous request) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TicketsController_release: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires the TECHNICIAN role, and the ticket assigned to the caller */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown or outside the caller areas */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not IN_PROGRESS or PENDING, or changed by another request */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
