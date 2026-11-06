@@ -6,9 +6,6 @@ import {
   type SeededTicket,
 } from './support/seed-tickets';
 
-const CONFLICT =
-  'Este chamado foi alterado por outra pessoa. Atualizamos os dados.';
-
 async function login(page: Page, { email, password }: Account) {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
@@ -265,7 +262,7 @@ test.describe('tickets', () => {
     await expect(page).toHaveURL(/\/chamados/);
   });
 
-  test('two technicians taking the same ticket: one succeeds, the other sees the conflict message', async ({
+  test('two technicians taking the same ticket: one succeeds, the other is left on the not found page', async ({
     browser,
   }) => {
     const { technician, otherTechnician, tickets } = await seedTickets();
@@ -282,16 +279,19 @@ test.describe('tickets', () => {
 
       await Promise.all([takeFirst.click(), takeSecond.click()]);
 
-      const alerts = [first.page, second.page].map((p) =>
-        p.getByRole('alert').filter({ hasText: CONFLICT }),
+      // The loser's take answers 409 and the reload that follows finds the
+      // ticket gone from its queue, so its page turns into "not found" (with
+      // no reload by the test). Exactly one of the two pages ends up there.
+      const notFound = [first.page, second.page].map((p) =>
+        p.getByRole('heading', { name: 'Chamado não encontrado' }),
       );
       await expect(async () => {
-        const counts = await Promise.all(alerts.map((a) => a.count()));
-        expect(counts.sort()).toEqual([0, 1]);
+        const counts = await Promise.all(notFound.map((h) => h.count()));
+        expect([...counts].sort()).toEqual([0, 1]);
       }).toPass();
 
       const [winner, loser] =
-        (await alerts[0].count()) === 0
+        (await notFound[0].count()) === 0
           ? [
               { ...first, who: technician },
               { ...second, who: otherTechnician },
@@ -312,7 +312,6 @@ test.describe('tickets', () => {
       await expect(
         winner.page.getByRole('complementary', { name: 'Propriedades' }),
       ).toContainText(winner.who.name);
-      await loser.page.reload();
       await expect(
         loser.page.getByRole('heading', { name: 'Chamado não encontrado' }),
       ).toBeVisible();

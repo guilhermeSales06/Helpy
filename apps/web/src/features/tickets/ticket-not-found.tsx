@@ -24,7 +24,7 @@ export function TicketNotFound() {
         Chamado não encontrado
       </h1>
       <p className="m-0 max-w-sm text-sm text-secondary">
-        Ele pode ter sido removido ou o endereço está incorreto.
+        Ele não existe ou você não tem acesso a ele.
       </p>
       <Link
         to="/chamados"

@@ -120,12 +120,15 @@ function LoadError({ onRetry }: { onRetry: () => void }) {
 
 function TicketDetail({ id, user }: { id: string; user: User }) {
   const query = useQuery(ticketQuery(id));
-  // After a failed reload the ticket on screen stays; only a ticket that was
-  // never loaded is an error.
-  const ticket = query.data;
+  // A 404 wins over the ticket still in the cache: after an action (a lost
+  // take, a release) the ticket may have left this person's sight, and the
+  // reload says so.
+  if (isNotFound(query.error)) return <TicketNotFound />;
 
+  // After any other failed reload the ticket on screen stays; only a ticket
+  // that was never loaded is an error.
+  const ticket = query.data;
   if (!ticket) {
-    if (isNotFound(query.error)) return <TicketNotFound />;
     return query.isError ? (
       <LoadError onRetry={() => void query.refetch()} />
     ) : (

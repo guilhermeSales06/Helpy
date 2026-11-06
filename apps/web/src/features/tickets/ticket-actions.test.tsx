@@ -424,22 +424,38 @@ describe('ticket actions', () => {
     ).not.toBeInTheDocument();
   });
 
-  it.each([
-    [403, 'Você não tem permissão para fazer isso neste chamado.'],
-    [404, 'Este chamado não está mais disponível para você.'],
-  ])(
-    'on %s after an action shows a clear message without breaking the page',
-    async (status, message) => {
+  it('on 403 after an action shows a clear message without breaking the page', async () => {
+    serve(
+      ticket(),
+      {},
+      { [`${path}/take`]: () => json({ message: 'no' }, 403) },
+    );
+    await open(tech);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Assumir' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Você não tem permissão para fazer isso neste chamado.',
+    );
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Chamado número 7' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([409, 404])(
+    'on %s when the ticket can no longer be read, the reload shows the not found page instead of the stale ticket',
+    async (status) => {
       let gone = false;
       serve(
         ticket(),
         {},
         {
-          // After a 404 the ticket can no longer be read either.
+          // The ticket left this person's queue: reading it again is a 404.
           [path]: () =>
             gone ? json({ message: 'not found' }, 404) : json(ticket()),
           [`${path}/take`]: () => {
-            gone = status === 404;
+            gone = true;
             return json({ message: 'no' }, status);
           },
         },
@@ -449,9 +465,17 @@ describe('ticket actions', () => {
         await screen.findByRole('button', { name: 'Assumir' }),
       );
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(message);
       expect(
-        screen.getByRole('heading', { level: 1, name: 'Chamado número 7' }),
+        await screen.findByRole('heading', { name: 'Chamado não encontrado' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 1, name: 'Chamado número 7' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Assumir' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Voltar para a lista' }),
       ).toBeInTheDocument();
     },
   );
