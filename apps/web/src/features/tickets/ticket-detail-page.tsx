@@ -8,7 +8,9 @@ import { StatusBadge } from './status-badge';
 import { formatNumber, type Ticket } from './ticket-model';
 import { TicketActions } from './ticket-actions';
 import { TicketProperties } from './ticket-properties';
-import { ticketQuery } from './ticket-queries';
+import { isNotFound, ticketQuery } from './ticket-queries';
+import { isUuid } from './ticket-search';
+import { TicketNotFound } from './ticket-not-found';
 
 const route = getRouteApi('/_app/chamados/$ticketId');
 
@@ -116,14 +118,14 @@ function LoadError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function TicketDetail({ user }: { user: User }) {
-  const { ticketId } = route.useParams();
-  const query = useQuery(ticketQuery(ticketId));
+function TicketDetail({ id, user }: { id: string; user: User }) {
+  const query = useQuery(ticketQuery(id));
   // After a failed reload the ticket on screen stays; only a ticket that was
   // never loaded is an error.
   const ticket = query.data;
 
   if (!ticket) {
+    if (isNotFound(query.error)) return <TicketNotFound />;
     return query.isError ? (
       <LoadError onRetry={() => void query.refetch()} />
     ) : (
@@ -146,7 +148,9 @@ function TicketDetail({ user }: { user: User }) {
 
 export function TicketDetailPage() {
   const { state } = useAuth();
-  return state.status === 'authenticated' ? (
-    <TicketDetail user={state.user} />
-  ) : null;
+  const { ticketId } = route.useParams();
+  if (state.status !== 'authenticated') return null;
+  // An id that cannot be a ticket's is not worth a request.
+  if (!isUuid(ticketId)) return <TicketNotFound />;
+  return <TicketDetail id={ticketId} user={state.user} />;
 }

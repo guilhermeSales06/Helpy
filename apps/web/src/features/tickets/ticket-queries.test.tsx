@@ -6,7 +6,9 @@ import { setAccessToken } from '../../shared/api/token-store';
 import {
   ticketCountsQuery,
   ticketListQuery,
+  retryTransient,
   ticketQuery,
+  TicketRequestError,
   useAssignTicket,
   useChangeTicketPriority,
   useChangeTicketStatus,
@@ -119,6 +121,29 @@ describe('ticketCountsQuery', () => {
       ).queryKey,
     ).toEqual(base);
     expect(ticketCountsQuery(full, TECH).queryKey).not.toEqual(base);
+  });
+});
+
+describe('retryTransient', () => {
+  it.each([400, 401, 403, 404, 409])(
+    'does not retry a %s, so its screen shows at once',
+    (status) => {
+      expect(retryTransient(0, new TicketRequestError(status))).toBe(false);
+    },
+  );
+
+  it.each([500, 502, 503])('retries a %s up to three times', (status) => {
+    const error = new TicketRequestError(status);
+    expect(retryTransient(0, error)).toBe(true);
+    expect(retryTransient(2, error)).toBe(true);
+    expect(retryTransient(3, error)).toBe(false);
+  });
+
+  it('retries a network error up to three times', () => {
+    const error = new TypeError('Failed to fetch');
+    expect(retryTransient(0, error)).toBe(true);
+    expect(retryTransient(2, error)).toBe(true);
+    expect(retryTransient(3, error)).toBe(false);
   });
 });
 

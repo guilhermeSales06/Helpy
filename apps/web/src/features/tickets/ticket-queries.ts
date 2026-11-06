@@ -20,6 +20,16 @@ export function isNotFound(error: unknown): boolean {
   return error instanceof TicketRequestError && error.status === 404;
 }
 
+/**
+ * The app's retry rule for queries: up to three retries, but only for what may
+ * pass (a network error or a 5xx). A 4xx (400, 403, 404) is an answer, not a
+ * hiccup, and retrying it only delays the screen that explains it.
+ */
+export function retryTransient(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 3) return false;
+  return !(error instanceof TicketRequestError) || error.status >= 500;
+}
+
 const keys = {
   all: ['tickets'] as const,
   lists: ['tickets', 'list'] as const,

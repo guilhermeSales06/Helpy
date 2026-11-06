@@ -144,4 +144,39 @@ describe('ticket detail page', () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it('an unknown or out-of-scope ticket (404) shows the not found page with a link back to the list', async () => {
+    mockApi({
+      [path(9)]: () => json({ message: 'Ticket not found' }, 404),
+    });
+    const { router } = await renderApp(
+      `/chamados/${ticketId(9)}`,
+      makeUser('TECHNICIAN'),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chamado não encontrado' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Não foi possível carregar o chamado.'),
+    ).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Voltar para a lista' });
+    expect(link).toHaveAttribute('href', '/chamados');
+
+    await userEvent.click(link);
+    expect(router.state.location.pathname).toBe('/chamados');
+  });
+
+  it('a malformed id (not a uuid) shows the not found page without calling the API for a ticket', async () => {
+    const api = mockApi();
+    await renderApp('/chamados/123', makeUser('ADMIN'));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chamado não encontrado' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Voltar para a lista' }),
+    ).toBeInTheDocument();
+    expect(api.requests).toHaveLength(0);
+  });
 });
