@@ -96,7 +96,7 @@ export const ZERO_COUNTS = {
   CLOSED: 0,
 };
 
-type Handler = (url: URL) => Response | Promise<Response>;
+type Handler = (url: URL, request: Request) => Response | Promise<Response>;
 
 /** Answers the API with empty data; `routes` replaces an answer by pathname. */
 export function mockApi(routes: Record<string, Handler> = {}) {
@@ -113,7 +113,7 @@ export function mockApi(routes: Record<string, Handler> = {}) {
     const url = new URL(input.url);
     requests.push(url);
     const handler = handlers[url.pathname];
-    return handler ? handler(url) : json({ message: 'Not found' }, 404);
+    return handler ? handler(url, input) : json({ message: 'Not found' }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
   return {

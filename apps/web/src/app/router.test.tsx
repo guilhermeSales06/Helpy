@@ -9,7 +9,7 @@ import {
   type AuthState,
   type User,
 } from '../features/auth/use-auth';
-import { mockApi } from '../test/ticket-test-utils';
+import { json, makeTicket, mockApi } from '../test/ticket-test-utils';
 import { AppRouter, createAppRouter } from './router';
 
 const user: User = {
@@ -91,9 +91,13 @@ function listSearch(router: ReturnType<typeof createAppRouter>) {
 
 const TICKET_ID = '6f1c1c8e-0000-4000-8000-0000000000c3';
 
-// The ticket list asks the API for its data; here it always finds none.
+// The ticket list asks the API for its data; here it always finds none, and
+// the one ticket that can be opened is TICKET_ID.
 beforeEach(() => {
-  mockApi();
+  mockApi({
+    [`/api/v1/tickets/${TICKET_ID}`]: () =>
+      json({ ...makeTicket(1), id: TICKET_ID, title: 'Troca de senha' }),
+  });
 });
 
 afterEach(() => {
@@ -271,7 +275,7 @@ describe('router', () => {
         redirect: `/chamados/${TICKET_ID}`,
       });
       await change(authenticated);
-      await screen.findByRole('heading', { name: 'Chamado' });
+      await screen.findByRole('heading', { name: 'Troca de senha' });
       expect(router.state.location.pathname).toBe(`/chamados/${TICKET_ID}`);
     });
 
@@ -326,7 +330,7 @@ describe('router', () => {
     it('opens a ticket by its id', async () => {
       setup(`/chamados/${TICKET_ID}`, authenticated);
       expect(
-        await screen.findByRole('heading', { name: 'Chamado' }),
+        await screen.findByRole('heading', { name: 'Troca de senha' }),
       ).toBeInTheDocument();
     });
   });
