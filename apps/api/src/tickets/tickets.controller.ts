@@ -104,6 +104,29 @@ export class TicketsController {
     return this.tickets.take(id, actor);
   }
 
+  @Patch(':id/release')
+  @Roles(Role.TECHNICIAN)
+  @ApiOperation({
+    summary:
+      'Give an IN_PROGRESS or PENDING ticket back to the queue (assigned technician only)',
+    description: 'Removes the technician and moves the ticket back to OPEN.',
+  })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiForbiddenResponse({
+    description:
+      'Requires the TECHNICIAN role, and the ticket assigned to the caller',
+  })
+  @ApiNotFoundResponse({ description: 'Unknown or outside the caller areas' })
+  @ApiConflictResponse({
+    description: 'Not IN_PROGRESS or PENDING, or changed by another request',
+  })
+  release(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.tickets.release(id, actor);
+  }
+
   @Patch(':id/assign')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Assign or reassign a technician (admins only)' })

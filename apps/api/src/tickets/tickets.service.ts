@@ -143,13 +143,7 @@ export class TicketsService {
   // took meanwhile is still in the queue the technician was looking at, so it
   // answers 409 (not 404) as long as it belongs to one of his areas.
   async take(id: string, actor: AuthUser) {
-    const ticket = await this.prisma.ticket.findFirst({
-      where: {
-        AND: [{ id }, { OR: [this.visibleTo(actor), this.inAreasOf(actor)] }],
-      },
-      select: ticketSelect,
-    });
-    if (!ticket) throw new NotFoundException('Ticket not found');
+    const ticket = await this.findInQueueScope(id, actor);
     if (ticket.technician) {
       throw new ConflictException('Ticket already has a technician');
     }
@@ -169,6 +163,37 @@ export class TicketsService {
           type: TicketEventType.STATUS_CHANGED,
           from: TicketStatus.OPEN,
           to: TicketStatus.IN_PROGRESS,
+        },
+      ],
+    );
+  }
+
+  // Gives the ticket back to the queue of its area.
+  async release(id: string, actor: AuthUser) {
+    const ticket = await this.findInQueueScope(id, actor);
+    if (ticket.technician && ticket.technician.id !== actor.id) {
+      throw new ForbiddenException('This ticket is not assigned to you');
+    }
+    if (
+      !ticket.technician ||
+      (ticket.status !== TicketStatus.IN_PROGRESS &&
+        ticket.status !== TicketStatus.PENDING)
+    ) {
+      throw new ConflictException(
+        `Cannot release a ${ticket.status.toLowerCase()} ticket`,
+      );
+    }
+
+    return this.applyChange(
+      ticket,
+      actor,
+      { technicianId: null, status: TicketStatus.OPEN },
+      [
+        { type: TicketEventType.ASSIGNED, from: actor.id, to: null },
+        {
+          type: TicketEventType.STATUS_CHANGED,
+          from: ticket.status,
+          to: TicketStatus.OPEN,
         },
       ],
     );
@@ -310,10 +335,19 @@ export class TicketsService {
     }
   }
 
-  private inAreasOf(actor: AuthUser): Prisma.TicketWhereInput {
-    return {
+  // What `visibleTo` shows a technician, plus the tickets of his areas that
+  // someone else holds, so that taking or releasing one of those answers 409/403
+  // instead of 404. Tickets of other areas stay hidden (404).
+  private async findInQueueScope(id: string, actor: AuthUser) {
+    const inMyAreas: Prisma.TicketWhereInput = {
       category: { area: { technicians: { some: { userId: actor.id } } } },
     };
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { AND: [{ id }, { OR: [this.visibleTo(actor), inMyAreas] }] },
+      select: ticketSelect,
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    return ticket;
   }
 
   // Technicians can see their area's unassigned queue, but only change their own tickets.

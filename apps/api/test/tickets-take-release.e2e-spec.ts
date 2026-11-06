@@ -29,6 +29,7 @@ describe('Take and release tickets (e2e)', () => {
   };
   let ids: { client: string; technician: string; colleague: string };
   let hardwareCategory: string;
+  let networkCategory: string;
 
   const send = (action: 'take' | 'release', id: string, token: string) =>
     request(app.getHttpServer())
@@ -37,8 +38,15 @@ describe('Take and release tickets (e2e)', () => {
   const take = (id: string, token = tokens.technician) =>
     send('take', id, token);
 
+  const release = (id: string, token = tokens.technician) =>
+    send('release', id, token);
+
   const makeTicket = (
-    extra: { status?: TicketStatus; technicianId?: string | null } = {},
+    extra: {
+      status?: TicketStatus;
+      technicianId?: string | null;
+      categoryId?: string;
+    } = {},
   ) =>
     prisma.ticket.create({
       data: {
@@ -66,6 +74,7 @@ describe('Take and release tickets (e2e)', () => {
     const hardware = await createCategory(prisma, 'Hardware');
     const network = await createCategory(prisma, 'Redes');
     hardwareCategory = hardware.id;
+    networkCategory = network.id;
     const admin = await createUser(prisma, Role.ADMIN);
     const client = await createUser(prisma, Role.CLIENT);
     const technician = await createTechnician(prisma, 'tech@test.local', [
@@ -228,6 +237,157 @@ describe('Take and release tickets (e2e)', () => {
       await request(app.getHttpServer())
         .patch(`${TICKETS}/${ticket.id}/take`)
         .expect(401);
+    });
+  });
+
+  describe('release', () => {
+    it.each([TicketStatus.IN_PROGRESS, TicketStatus.PENDING])(
+      'lets the assigned technician release a %s ticket: no technician, OPEN, two events',
+      async (status) => {
+        const ticket = await makeTicket({
+          status,
+          technicianId: ids.technician,
+        });
+
+        const { body } = await release(ticket.id).expect(200);
+
+        expect(body).toMatchObject({
+          id: ticket.id,
+          status: TicketStatus.OPEN,
+          technician: null,
+        });
+        expect(
+          await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } }),
+        ).toMatchObject({ technicianId: null, status: TicketStatus.OPEN });
+        expect(await eventsOf(ticket.id)).toEqual(
+          [
+            [TicketEventType.ASSIGNED, ids.technician, null, ids.technician],
+            [
+              TicketEventType.STATUS_CHANGED,
+              status,
+              TicketStatus.OPEN,
+              ids.technician,
+            ],
+          ].sort(),
+        );
+      },
+    );
+
+    it('forbids another technician of the area from releasing', async () => {
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+      });
+
+      await release(ticket.id, tokens.colleague).expect(403);
+
+      expect(
+        await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } }),
+      ).toMatchObject({
+        technicianId: ids.technician,
+        status: TicketStatus.IN_PROGRESS,
+      });
+      expect(await prisma.ticketEvent.count()).toBe(0);
+    });
+
+    it('answers 404 to a technician outside the area of a ticket held by someone else', async () => {
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+      });
+
+      await release(ticket.id, tokens.outsider).expect(404);
+    });
+
+    it.each([TicketStatus.OPEN, TicketStatus.RESOLVED, TicketStatus.CLOSED])(
+      'answers 409 when releasing a %s ticket',
+      async (status) => {
+        const ticket = await makeTicket({
+          status,
+          technicianId: ids.technician,
+        });
+
+        await release(ticket.id).expect(409);
+
+        expect(
+          await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } }),
+        ).toMatchObject({ technicianId: ids.technician, status });
+        expect(await prisma.ticketEvent.count()).toBe(0);
+      },
+    );
+
+    it('answers 409 when releasing an unassigned OPEN ticket of the queue', async () => {
+      const ticket = await makeTicket();
+
+      await release(ticket.id).expect(409);
+
+      expect(await prisma.ticketEvent.count()).toBe(0);
+    });
+
+    it('answers 409 to the second of two simultaneous releases and records one pair of events', async () => {
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+      });
+
+      const responses = await Promise.all([
+        release(ticket.id),
+        release(ticket.id),
+      ]);
+
+      expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(await eventsOf(ticket.id)).toHaveLength(2);
+    });
+
+    it('forbids admin and client from releasing', async () => {
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+      });
+
+      await release(ticket.id, tokens.admin).expect(403);
+      await release(ticket.id, tokens.client).expect(403);
+
+      expect(
+        await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } }),
+      ).toMatchObject({
+        technicianId: ids.technician,
+        status: TicketStatus.IN_PROGRESS,
+      });
+      expect(await prisma.ticketEvent.count()).toBe(0);
+    });
+
+    it('a released ticket can be taken by another technician of the area', async () => {
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+      });
+      await release(ticket.id).expect(200);
+
+      const { body } = await take(ticket.id, tokens.colleague).expect(200);
+
+      expect(body).toMatchObject({
+        status: TicketStatus.IN_PROGRESS,
+        technician: { id: ids.colleague },
+      });
+    });
+
+    it('the technician no longer sees a released ticket of an area he does not serve', async () => {
+      // An admin can assign a ticket of an area the technician does not serve.
+      const ticket = await makeTicket({
+        status: TicketStatus.IN_PROGRESS,
+        technicianId: ids.technician,
+        categoryId: networkCategory,
+      });
+      const get = () =>
+        request(app.getHttpServer())
+          .get(`${TICKETS}/${ticket.id}`)
+          .set('Authorization', `Bearer ${tokens.technician}`);
+      await get().expect(200);
+
+      await release(ticket.id).expect(200);
+
+      await get().expect(404);
     });
   });
 });
