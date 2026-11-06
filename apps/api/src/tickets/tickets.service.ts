@@ -19,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateTicketDto,
   ListTicketsQueryDto,
+  type TicketSort,
 } from './dto/ticket-input.dto.js';
 import { checkTransition } from './ticket-status.js';
 
@@ -45,6 +46,17 @@ const ticketSelect = {
   },
 } satisfies Prisma.TicketSelect;
 
+const orderBySort: Record<TicketSort, Prisma.TicketOrderByWithRelationInput[]> =
+  {
+    newest: [{ createdAt: 'desc' }, { id: 'asc' }],
+    updated: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
+    // The enum goes from LOW to URGENT, so descending puts URGENT first.
+    priority: [{ priority: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+  };
+
+const INT_MAX = 2_147_483_647;
+
 type SelectedTicket = Prisma.TicketGetPayload<{ select: typeof ticketSelect }>;
 
 @Injectable()
@@ -66,22 +78,19 @@ export class TicketsService {
   }
 
   async findAll(query: ListTicketsQueryDto, actor: AuthUser) {
-    const { status, priority, categoryId, technicianId, unassigned } = query;
-
-    const filters: Prisma.TicketWhereInput[] = [
-      this.visibleTo(actor),
-      { status, priority, categoryId, technicianId },
-    ];
-    if (unassigned !== undefined) {
-      filters.push({ technicianId: unassigned ? null : { not: null } });
-    }
-    const where = { AND: filters };
+    const where: Prisma.TicketWhereInput = {
+      AND: [
+        this.visibleTo(actor),
+        { status: query.status },
+        ...this.listFilters(query),
+      ],
+    };
 
     const [tickets, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
         where,
         select: ticketSelect,
-        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        orderBy: orderBySort[query.sort ?? 'newest'],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
@@ -188,6 +197,32 @@ export class TicketsService {
         to: priority,
       },
     );
+  }
+
+  private listFilters(query: ListTicketsQueryDto): Prisma.TicketWhereInput[] {
+    const { priority, categoryId, technicianId, unassigned, q } = query;
+    const filters: Prisma.TicketWhereInput[] = [
+      { priority, categoryId, technicianId },
+    ];
+    if (unassigned !== undefined) {
+      filters.push({ technicianId: unassigned ? null : { not: null } });
+    }
+    if (q) filters.push(this.search(q));
+    return filters;
+  }
+
+  // Prisma does not escape LIKE wildcards in `contains`, so %, _ and \ are escaped
+  // here to match as plain text.
+  private search(q: string): Prisma.TicketWhereInput {
+    const or: Prisma.TicketWhereInput[] = [
+      {
+        title: { contains: q.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' },
+      },
+    ];
+    const digits = /^#?(\d{1,10})$/.exec(q)?.[1];
+    if (digits && Number(digits) <= INT_MAX)
+      or.push({ number: Number(digits) });
+    return { OR: or };
   }
 
   private visibleTo(actor: AuthUser): Prisma.TicketWhereInput {

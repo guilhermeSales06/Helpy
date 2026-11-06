@@ -63,6 +63,9 @@ export class UpdateTicketPriorityDto {
   priority: TicketPriority;
 }
 
+const sorts = ['newest', 'updated', 'oldest', 'priority'] as const;
+export type TicketSort = (typeof sorts)[number];
+
 export class ListTicketsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: TicketStatus, enumName: 'TicketStatus' })
   @IsOptional()
@@ -92,4 +95,26 @@ export class ListTicketsQueryDto extends PaginationQueryDto {
   @Transform(toBoolean)
   @IsBoolean()
   unassigned?: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    maxLength: 100,
+    description:
+      'Text in the title (case-insensitive), or a ticket number with an optional #',
+  })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional({
+    enum: sorts,
+    default: 'newest',
+    description:
+      'newest: created, newest first. updated: most recently updated first. oldest: created, oldest first. priority: highest priority first, then oldest.',
+  })
+  @IsOptional()
+  @IsIn(sorts)
+  sort?: TicketSort;
 }
