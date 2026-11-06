@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -118,3 +118,10 @@ export class ListTicketsQueryDto extends PaginationQueryDto {
   @IsIn(sorts)
   sort?: TicketSort;
 }
+
+export class TicketCountsQueryDto extends OmitType(ListTicketsQueryDto, [
+  'status',
+  'sort',
+  'page',
+  'limit',
+] as const) {}

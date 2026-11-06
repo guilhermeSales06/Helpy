@@ -28,10 +28,12 @@ import {
   AssignTicketDto,
   CreateTicketDto,
   ListTicketsQueryDto,
+  TicketCountsQueryDto,
   UpdateTicketPriorityDto,
   UpdateTicketStatusDto,
 } from './dto/ticket-input.dto.js';
 import {
+  TicketCountsResponseDto,
   TicketListResponseDto,
   TicketResponseDto,
 } from './dto/ticket-response.dto.js';
@@ -61,6 +63,18 @@ export class TicketsController {
   @ApiOkResponse({ type: TicketListResponseDto })
   findAll(@Query() query: ListTicketsQueryDto, @CurrentUser() actor: AuthUser) {
     return this.tickets.findAll(query, actor);
+  }
+
+  // Declared before ':id', so that "counts" is not read as a ticket id.
+  @Get('counts')
+  @ApiOperation({
+    summary: 'Count the visible tickets by status',
+    description:
+      'Takes the same filters as the list, except status, sort, page and limit, and follows the same visibility rules.',
+  })
+  @ApiOkResponse({ type: TicketCountsResponseDto })
+  counts(@Query() query: TicketCountsQueryDto, @CurrentUser() actor: AuthUser) {
+    return this.tickets.countByStatus(query, actor);
   }
 
   @Get(':id')

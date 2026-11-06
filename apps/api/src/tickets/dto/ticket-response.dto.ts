@@ -64,3 +64,18 @@ export class TicketListResponseDto {
   @ApiProperty({ type: PaginationMetaDto })
   meta: PaginationMetaDto;
 }
+
+export class TicketCountsResponseDto {
+  @ApiProperty({ type: Number, description: 'All visible tickets that match' })
+  total: number;
+
+  @ApiProperty({
+    type: 'object',
+    properties: Object.fromEntries(
+      Object.values(TicketStatus).map((status) => [status, { type: 'number' }]),
+    ),
+    required: Object.values(TicketStatus),
+    description: 'Tickets per status, 0 where there are none',
+  })
+  byStatus: Record<TicketStatus, number>;
+}

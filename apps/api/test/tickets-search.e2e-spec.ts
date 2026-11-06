@@ -197,5 +197,58 @@ describe('Ticket search, sort and counts (e2e)', () => {
 
   it('rejects an unknown sort with 400', async () => {
     await get(`${TICKETS}?sort=foo`).expect(400);
+    await get(`${TICKETS}/counts?sort=newest`).expect(400);
+  });
+
+  it('counts by status for the actor only', async () => {
+    await make('o1');
+    await make('o2');
+    await make('p1', {
+      status: TicketStatus.PENDING,
+      technicianId: ids.technician,
+    });
+    await make('net', { categoryId: networkCategory });
+    await make('net progress', {
+      categoryId: networkCategory,
+      status: TicketStatus.IN_PROGRESS,
+      technicianId: null,
+    });
+
+    const admin = await get(`${TICKETS}/counts`).expect(200);
+    expect(admin.body).toEqual({
+      total: 5,
+      byStatus: { OPEN: 3, IN_PROGRESS: 1, PENDING: 1, RESOLVED: 0, CLOSED: 0 },
+    });
+
+    const tech = await get(`${TICKETS}/counts`, tokens.technician).expect(200);
+    expect(tech.body).toEqual({
+      total: 3,
+      byStatus: { OPEN: 2, IN_PROGRESS: 0, PENDING: 1, RESOLVED: 0, CLOSED: 0 },
+    });
+  });
+
+  it('counts ignore the status filter but respect the other filters and q', async () => {
+    await make('alpha', { priority: TicketPriority.HIGH });
+    await make('alpha two', {
+      priority: TicketPriority.HIGH,
+      status: TicketStatus.RESOLVED,
+      technicianId: ids.technician,
+    });
+    await make('beta', { priority: TicketPriority.HIGH });
+    await make('alpha low', { priority: TicketPriority.LOW });
+
+    const { body } = await get(
+      `${TICKETS}/counts?priority=HIGH&q=alpha`,
+    ).expect(200);
+    expect(body).toEqual({
+      total: 2,
+      byStatus: { OPEN: 1, IN_PROGRESS: 0, PENDING: 0, RESOLVED: 1, CLOSED: 0 },
+    });
+    // The status is not a counts filter: the global validation rejects it.
+    await get(`${TICKETS}/counts?status=OPEN`).expect(400);
+  });
+
+  it('counts is not read as a ticket id', async () => {
+    await get(`${TICKETS}/counts`).expect(200);
   });
 });

@@ -19,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateTicketDto,
   ListTicketsQueryDto,
+  TicketCountsQueryDto,
   type TicketSort,
 } from './dto/ticket-input.dto.js';
 import { checkTransition } from './ticket-status.js';
@@ -97,6 +98,28 @@ export class TicketsService {
       this.prisma.ticket.count({ where }),
     ]);
     return { data: tickets, meta: paginationMeta(query, total) };
+  }
+
+  // Same filters as the list, minus the status, so each status tab can show its count.
+  async countByStatus(query: TicketCountsQueryDto, actor: AuthUser) {
+    const where: Prisma.TicketWhereInput = {
+      AND: [this.visibleTo(actor), ...this.listFilters(query)],
+    };
+    const groups = await this.prisma.ticket.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+
+    const byStatus = Object.fromEntries(
+      Object.values(TicketStatus).map((status) => [status, 0]),
+    ) as Record<TicketStatus, number>;
+    let total = 0;
+    for (const group of groups) {
+      byStatus[group.status] = group._count._all;
+      total += group._count._all;
+    }
+    return { total, byStatus };
   }
 
   async findOne(id: string, actor: AuthUser) {
@@ -199,7 +222,7 @@ export class TicketsService {
     );
   }
 
-  private listFilters(query: ListTicketsQueryDto): Prisma.TicketWhereInput[] {
+  private listFilters(query: TicketCountsQueryDto): Prisma.TicketWhereInput[] {
     const { priority, categoryId, technicianId, unassigned, q } = query;
     const filters: Prisma.TicketWhereInput[] = [
       { priority, categoryId, technicianId },
