@@ -58,6 +58,12 @@ const orderBySort: Record<TicketSort, Prisma.TicketOrderByWithRelationInput[]> =
 
 const INT_MAX = 2_147_483_647;
 
+type TicketEventInput = {
+  type: TicketEventType;
+  from?: string | null;
+  to?: string | null;
+};
+
 type SelectedTicket = Prisma.TicketGetPayload<{ select: typeof ticketSelect }>;
 
 @Injectable()
@@ -278,12 +284,12 @@ export class TicketsService {
 
   // Only writes if the ticket is still as it was read, so that two simultaneous
   // requests can't both succeed based on the same state. The change and its
-  // audit event are saved together or not at all.
+  // audit events are saved together or not at all.
   private async applyChange(
     ticket: SelectedTicket,
     actor: AuthUser,
     data: Prisma.TicketUncheckedUpdateManyInput,
-    event: { type: TicketEventType; from?: string; to: string },
+    events: TicketEventInput | TicketEventInput[],
   ) {
     const updated = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.ticket.updateMany({
@@ -297,8 +303,12 @@ export class TicketsService {
       });
       if (count !== 1) return null;
 
-      await tx.ticketEvent.create({
-        data: { ...event, ticketId: ticket.id, actorId: actor.id },
+      await tx.ticketEvent.createMany({
+        data: [events].flat().map((event) => ({
+          ...event,
+          ticketId: ticket.id,
+          actorId: actor.id,
+        })),
       });
       return tx.ticket.findUniqueOrThrow({
         where: { id: ticket.id },
