@@ -21,8 +21,7 @@ function countOf(
   status: TicketStatus | undefined,
 ): number | undefined {
   if (!counts) return undefined;
-  // The schema marks `byStatus` as optional; without it there are none.
-  return status ? (counts.byStatus?.[status] ?? 0) : counts.total;
+  return status ? counts.byStatus[status] : counts.total;
 }
 
 type Props = {

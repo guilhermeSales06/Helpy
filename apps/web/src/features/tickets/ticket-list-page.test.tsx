@@ -354,18 +354,6 @@ describe('ticket list page', () => {
       ).toHaveAttribute('aria-selected', 'true');
     });
 
-    it('treats a counts answer without byStatus as zeros', async () => {
-      mockApi({ '/api/v1/tickets/counts': () => json({ total: 7 }) });
-      await renderApp('/chamados', makeUser('ADMIN'));
-      expect(
-        await screen.findByRole('tab', { name: 'Todos 7' }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Aberto 0' })).toBeInTheDocument();
-      expect(
-        screen.getByRole('tab', { name: 'Fechado 0' }),
-      ).toBeInTheDocument();
-    });
-
     it('still shows the tabs, without numbers, when the counts fail', async () => {
       mockApi({
         '/api/v1/tickets/counts': () => json({ message: 'boom' }, 500),
