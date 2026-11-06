@@ -7,6 +7,7 @@ import {
   createRouter,
   useNavigate,
   redirect,
+  stripSearchParams,
   type RouterHistory,
 } from '@tanstack/react-router';
 import { AppShell } from './app-shell';
@@ -19,6 +20,9 @@ import {
   UnavailableScreen,
 } from '../features/auth/session-screens';
 import { useAuth, type AuthContextValue } from '../features/auth/use-auth';
+import { TicketDetailPage } from '../features/tickets/ticket-detail-page';
+import { TicketListPage } from '../features/tickets/ticket-list-page';
+import { parseTicketSearch } from '../features/tickets/ticket-search';
 
 type RouterContext = { auth: AuthContextValue };
 
@@ -100,10 +104,25 @@ const homeRoute = createRoute({
   component: HomePage,
 });
 
+const ticketsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/chamados',
+  validateSearch: parseTicketSearch,
+  // Defaults stay out of the URL, so links and the address bar stay short.
+  search: { middlewares: [stripSearchParams({ sort: 'newest', page: 1 })] },
+  component: TicketListPage,
+});
+
+const ticketRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/chamados/$ticketId',
+  component: TicketDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   signupRoute,
-  appRoute.addChildren([homeRoute]),
+  appRoute.addChildren([homeRoute, ticketsRoute, ticketRoute]),
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

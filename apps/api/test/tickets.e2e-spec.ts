@@ -18,7 +18,7 @@ import {
 } from './helpers.js';
 
 const TICKETS = '/api/v1/tickets';
-const { OPEN, IN_PROGRESS, RESOLVED, CLOSED } = TicketStatus;
+const { OPEN, IN_PROGRESS, PENDING, RESOLVED, CLOSED } = TicketStatus;
 
 describe('Tickets (e2e)', () => {
   let app: INestApplication;
@@ -157,7 +157,6 @@ describe('Tickets (e2e)', () => {
         category: { id: networkCategory, area: { name: 'Redes' } },
       });
       expect(JSON.stringify(body)).not.toContain('passwordHash');
-      expect(JSON.stringify(body)).not.toContain('email');
     });
 
     it('defaults to normal priority', async () => {
@@ -274,6 +273,37 @@ describe('Tickets (e2e)', () => {
         .expect(404);
 
       expect(invisible.body).toEqual(unknown.body);
+    });
+  });
+
+  describe('number', () => {
+    it('returns the ticket number and the client e-mail', async () => {
+      const { id } = await openTicket();
+
+      const { body } = await as(tokens.client)
+        .get(`${TICKETS}/${id}`)
+        .expect(200);
+
+      expect(Number.isInteger(body.number)).toBe(true);
+      expect(body.client).toEqual({
+        id: ids.client,
+        name: expect.any(String),
+        email: expect.any(String),
+      });
+    });
+
+    it('gives increasing numbers to new tickets', async () => {
+      const first = await openTicket();
+      const second = await openTicket();
+
+      const [a, b] = await Promise.all(
+        [first, second].map(async ({ id }) => {
+          const { body } = await as(tokens.admin).get(`${TICKETS}/${id}`);
+          return body.number as number;
+        }),
+      );
+
+      expect(b).toBeGreaterThan(a);
     });
   });
 
@@ -451,6 +481,37 @@ describe('Tickets (e2e)', () => {
         [IN_PROGRESS, RESOLVED],
         [RESOLVED, CLOSED],
       ]);
+    });
+
+    it('moves an assigned ticket to PENDING and back to IN_PROGRESS, recording STATUS_CHANGED events', async () => {
+      const id = await ticketIn(IN_PROGRESS);
+
+      const pending = await setStatus(id, PENDING, tokens.technician);
+      expect(pending.status).toBe(200);
+      expect(pending.body.status).toBe(PENDING);
+
+      const back = await setStatus(id, IN_PROGRESS, tokens.technician);
+      expect(back.status).toBe(200);
+      expect(back.body.status).toBe(IN_PROGRESS);
+
+      const events = await prisma.ticketEvent.findMany({
+        where: { ticketId: id, type: TicketEventType.STATUS_CHANGED },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(events.map((e) => [e.from, e.to])).toEqual([
+        [OPEN, IN_PROGRESS],
+        [IN_PROGRESS, PENDING],
+        [PENDING, IN_PROGRESS],
+      ]);
+    });
+
+    it('forbids a client from marking a ticket PENDING', async () => {
+      const id = await ticketIn(IN_PROGRESS);
+
+      await setStatus(id, PENDING, tokens.client).expect(403);
+
+      const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id } });
+      expect(ticket.status).toBe(IN_PROGRESS);
     });
 
     it('needs a technician before starting', async () => {

@@ -19,6 +19,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateTicketDto,
   ListTicketsQueryDto,
+  TicketCountsQueryDto,
+  type TicketSort,
 } from './dto/ticket-input.dto.js';
 import { checkTransition } from './ticket-status.js';
 
@@ -26,6 +28,7 @@ const person = { select: { id: true, name: true } };
 
 const ticketSelect = {
   id: true,
+  number: true,
   title: true,
   description: true,
   status: true,
@@ -33,7 +36,7 @@ const ticketSelect = {
   resolvedAt: true,
   createdAt: true,
   updatedAt: true,
-  client: person,
+  client: { select: { id: true, name: true, email: true } },
   technician: person,
   category: {
     select: {
@@ -43,6 +46,23 @@ const ticketSelect = {
     },
   },
 } satisfies Prisma.TicketSelect;
+
+const orderBySort: Record<TicketSort, Prisma.TicketOrderByWithRelationInput[]> =
+  {
+    newest: [{ createdAt: 'desc' }, { id: 'asc' }],
+    updated: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
+    // The enum goes from LOW to URGENT, so descending puts URGENT first.
+    priority: [{ priority: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+  };
+
+const INT_MAX = 2_147_483_647;
+
+type TicketEventInput = {
+  type: TicketEventType;
+  from?: string | null;
+  to?: string | null;
+};
 
 type SelectedTicket = Prisma.TicketGetPayload<{ select: typeof ticketSelect }>;
 
@@ -65,28 +85,47 @@ export class TicketsService {
   }
 
   async findAll(query: ListTicketsQueryDto, actor: AuthUser) {
-    const { status, priority, categoryId, technicianId, unassigned } = query;
-
-    const filters: Prisma.TicketWhereInput[] = [
-      this.visibleTo(actor),
-      { status, priority, categoryId, technicianId },
-    ];
-    if (unassigned !== undefined) {
-      filters.push({ technicianId: unassigned ? null : { not: null } });
-    }
-    const where = { AND: filters };
+    const where: Prisma.TicketWhereInput = {
+      AND: [
+        this.visibleTo(actor),
+        { status: query.status },
+        ...this.listFilters(query),
+      ],
+    };
 
     const [tickets, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
         where,
         select: ticketSelect,
-        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        orderBy: orderBySort[query.sort ?? 'newest'],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
       this.prisma.ticket.count({ where }),
     ]);
     return { data: tickets, meta: paginationMeta(query, total) };
+  }
+
+  // Same filters as the list, minus the status, so each status tab can show its count.
+  async countByStatus(query: TicketCountsQueryDto, actor: AuthUser) {
+    const where: Prisma.TicketWhereInput = {
+      AND: [this.visibleTo(actor), ...this.listFilters(query)],
+    };
+    const groups = await this.prisma.ticket.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+
+    const byStatus = Object.fromEntries(
+      Object.values(TicketStatus).map((status) => [status, 0]),
+    ) as Record<TicketStatus, number>;
+    let total = 0;
+    for (const group of groups) {
+      byStatus[group.status] = group._count._all;
+      total += group._count._all;
+    }
+    return { total, byStatus };
   }
 
   async findOne(id: string, actor: AuthUser) {
@@ -98,6 +137,66 @@ export class TicketsService {
     // find out which ticket ids exist.
     if (!ticket) throw new NotFoundException('Ticket not found');
     return ticket;
+  }
+
+  // Technicians take from the queue of their areas. A ticket that someone else
+  // took meanwhile is still in the queue the technician was looking at, so it
+  // answers 409 (not 404) as long as it belongs to one of his areas.
+  async take(id: string, actor: AuthUser) {
+    const ticket = await this.findInQueueScope(id, actor);
+    if (ticket.technician) {
+      throw new ConflictException('Ticket already has a technician');
+    }
+    if (ticket.status !== TicketStatus.OPEN) {
+      throw new ConflictException(
+        `Cannot take a ${ticket.status.toLowerCase()} ticket`,
+      );
+    }
+
+    return this.applyChange(
+      ticket,
+      actor,
+      { technicianId: actor.id, status: TicketStatus.IN_PROGRESS },
+      [
+        { type: TicketEventType.ASSIGNED, from: null, to: actor.id },
+        {
+          type: TicketEventType.STATUS_CHANGED,
+          from: TicketStatus.OPEN,
+          to: TicketStatus.IN_PROGRESS,
+        },
+      ],
+    );
+  }
+
+  // Gives the ticket back to the queue of its area.
+  async release(id: string, actor: AuthUser) {
+    const ticket = await this.findInQueueScope(id, actor);
+    if (ticket.technician && ticket.technician.id !== actor.id) {
+      throw new ForbiddenException('This ticket is not assigned to you');
+    }
+    if (
+      !ticket.technician ||
+      (ticket.status !== TicketStatus.IN_PROGRESS &&
+        ticket.status !== TicketStatus.PENDING)
+    ) {
+      throw new ConflictException(
+        `Cannot release a ${ticket.status.toLowerCase()} ticket`,
+      );
+    }
+
+    return this.applyChange(
+      ticket,
+      actor,
+      { technicianId: null, status: TicketStatus.OPEN },
+      [
+        { type: TicketEventType.ASSIGNED, from: actor.id, to: null },
+        {
+          type: TicketEventType.STATUS_CHANGED,
+          from: ticket.status,
+          to: TicketStatus.OPEN,
+        },
+      ],
+    );
   }
 
   async assign(id: string, technicianId: string, actor: AuthUser) {
@@ -189,6 +288,32 @@ export class TicketsService {
     );
   }
 
+  private listFilters(query: TicketCountsQueryDto): Prisma.TicketWhereInput[] {
+    const { priority, categoryId, technicianId, unassigned, q } = query;
+    const filters: Prisma.TicketWhereInput[] = [
+      { priority, categoryId, technicianId },
+    ];
+    if (unassigned !== undefined) {
+      filters.push({ technicianId: unassigned ? null : { not: null } });
+    }
+    if (q) filters.push(this.search(q));
+    return filters;
+  }
+
+  // Prisma does not escape LIKE wildcards in `contains`, so %, _ and \ are escaped
+  // here to match as plain text.
+  private search(q: string): Prisma.TicketWhereInput {
+    const or: Prisma.TicketWhereInput[] = [
+      {
+        title: { contains: q.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' },
+      },
+    ];
+    const digits = /^#?(\d{1,10})$/.exec(q)?.[1];
+    if (digits && Number(digits) <= INT_MAX)
+      or.push({ number: Number(digits) });
+    return { OR: or };
+  }
+
   private visibleTo(actor: AuthUser): Prisma.TicketWhereInput {
     switch (actor.role) {
       case Role.ADMIN:
@@ -210,6 +335,21 @@ export class TicketsService {
     }
   }
 
+  // What `visibleTo` shows a technician, plus the tickets of his areas that
+  // someone else holds, so that taking or releasing one of those answers 409/403
+  // instead of 404. Tickets of other areas stay hidden (404).
+  private async findInQueueScope(id: string, actor: AuthUser) {
+    const inMyAreas: Prisma.TicketWhereInput = {
+      category: { area: { technicians: { some: { userId: actor.id } } } },
+    };
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { AND: [{ id }, { OR: [this.visibleTo(actor), inMyAreas] }] },
+      select: ticketSelect,
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    return ticket;
+  }
+
   // Technicians can see their area's unassigned queue, but only change their own tickets.
   private assertAssignedIfTechnician(ticket: SelectedTicket, actor: AuthUser) {
     if (actor.role === Role.TECHNICIAN && ticket.technician?.id !== actor.id) {
@@ -219,12 +359,12 @@ export class TicketsService {
 
   // Only writes if the ticket is still as it was read, so that two simultaneous
   // requests can't both succeed based on the same state. The change and its
-  // audit event are saved together or not at all.
+  // audit events are saved together or not at all.
   private async applyChange(
     ticket: SelectedTicket,
     actor: AuthUser,
     data: Prisma.TicketUncheckedUpdateManyInput,
-    event: { type: TicketEventType; from?: string; to: string },
+    events: TicketEventInput | TicketEventInput[],
   ) {
     const updated = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.ticket.updateMany({
@@ -238,8 +378,12 @@ export class TicketsService {
       });
       if (count !== 1) return null;
 
-      await tx.ticketEvent.create({
-        data: { ...event, ticketId: ticket.id, actorId: actor.id },
+      await tx.ticketEvent.createMany({
+        data: [events].flat().map((event) => ({
+          ...event,
+          ticketId: ticket.id,
+          actorId: actor.id,
+        })),
       });
       return tx.ticket.findUniqueOrThrow({
         where: { id: ticket.id },

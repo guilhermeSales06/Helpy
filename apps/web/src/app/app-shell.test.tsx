@@ -1,4 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +8,7 @@ import {
   type AuthContextValue,
   type User,
 } from '../features/auth/use-auth';
+import { mockApi } from '../test/ticket-test-utils';
 import { AppRouter, createAppRouter } from './router';
 
 function makeUser(overrides: Partial<User> = {}): User {
@@ -25,7 +27,11 @@ function makeUser(overrides: Partial<User> = {}): User {
   };
 }
 
-async function renderShell(user: User = makeUser(), logout = vi.fn()) {
+async function renderShell(
+  user: User = makeUser(),
+  logout = vi.fn(),
+  path = '/',
+) {
   const value: AuthContextValue = {
     state: { status: 'authenticated', user },
     login: vi.fn(),
@@ -34,12 +40,17 @@ async function renderShell(user: User = makeUser(), logout = vi.fn()) {
     retry: vi.fn(),
   };
   const router = createAppRouter(
-    createMemoryHistory({ initialEntries: ['/'] }),
+    createMemoryHistory({ initialEntries: [path] }),
   );
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const tree = (
-    <AuthContext value={value}>
-      <AppRouter router={router} />
-    </AuthContext>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext value={value}>
+        <AppRouter router={router} />
+      </AuthContext>
+    </QueryClientProvider>
   );
   const view = await act(async () => render(tree));
   await screen.findByRole('navigation', { name: 'Principal' });
@@ -54,31 +65,60 @@ function setWidth(width: number) {
 }
 
 beforeEach(() => {
+  mockApi();
   localStorage.clear();
   setWidth(1280);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('app shell', () => {
   it.each([
-    ['CLIENT', ['Meus chamados']],
-    ['TECHNICIAN', ['Visão geral']],
-    ['ADMIN', ['Visão geral']],
-  ] as const)('shows the %s navigation', async (role, labels) => {
+    ['CLIENT', ['Meus chamados'], ['/']],
+    [
+      'TECHNICIAN',
+      ['Visão geral', 'Meus chamados', 'Não atribuídos'],
+      ['/', '/chamados?assignee=me', '/chamados?assignee=none'],
+    ],
+    [
+      'ADMIN',
+      ['Visão geral', 'Todos os chamados', 'Não atribuídos'],
+      ['/', '/chamados', '/chamados?assignee=none'],
+    ],
+  ] as const)('shows the %s navigation', async (role, labels, hrefs) => {
     await renderShell(makeUser({ role }));
     const nav = screen.getByRole('navigation', { name: 'Principal' });
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((a) => a.textContent)).toEqual(labels);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(hrefs);
+    expect(links[0]).toHaveAttribute('aria-current', 'page');
     expect(
-      within(nav)
-        .getAllByRole('link')
-        .map((a) => a.textContent),
-    ).toEqual(labels);
-    expect(within(nav).getByRole('link')).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+      links.slice(1).filter((a) => a.hasAttribute('aria-current')),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ['/chamados?assignee=me', 'Meus chamados'],
+    ['/chamados?assignee=none', 'Não atribuídos'],
+  ])('marks only the item of %s as current', async (path, current) => {
+    await renderShell(makeUser({ role: 'TECHNICIAN' }), vi.fn(), path);
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    const active = within(nav)
+      .getAllByRole('link')
+      .filter((a) => a.hasAttribute('aria-current'));
+    expect(active.map((a) => a.textContent)).toEqual([current]);
+  });
+
+  it('marks "Todos os chamados" as current for the admin on /chamados', async () => {
+    await renderShell(makeUser({ role: 'ADMIN' }), vi.fn(), '/chamados');
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    const active = within(nav)
+      .getAllByRole('link')
+      .filter((a) => a.hasAttribute('aria-current'));
+    expect(active.map((a) => a.textContent)).toEqual(['Todos os chamados']);
   });
 
   it('shows the user name and initials in the profile menu', async () => {

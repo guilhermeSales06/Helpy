@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useAuth } from '../features/auth/use-auth';
+import { HeaderSearch } from './header-search';
 import { navItemsFor } from './nav-items';
 import { ProfileMenu } from './profile-menu';
 
@@ -75,6 +76,7 @@ export function AppShell() {
             <Link
               key={item.label}
               to={item.to}
+              search={item.search}
               activeOptions={{ exact: true }}
               title={item.label}
               aria-label={item.label}
@@ -131,7 +133,8 @@ export function AppShell() {
       </aside>
 
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 flex-none items-center justify-end gap-3 border-b border-line bg-white px-4 sm:px-6">
+        <header className="flex h-16 flex-none items-center justify-between gap-3 border-b border-line bg-white px-4 sm:px-6">
+          {user.role === 'CLIENT' ? <div /> : <HeaderSearch />}
           <ProfileMenu user={user} />
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">

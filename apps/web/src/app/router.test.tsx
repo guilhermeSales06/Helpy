@@ -1,13 +1,15 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRoute } from '@tanstack/react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AuthContext,
   type AuthContextValue,
   type AuthState,
   type User,
 } from '../features/auth/use-auth';
+import { json, makeTicket, mockApi } from '../test/ticket-test-utils';
 import { AppRouter, createAppRouter } from './router';
 
 const user: User = {
@@ -61,10 +63,15 @@ function setup(
 ) {
   const history = createMemoryHistory({ initialEntries: [initial] });
   const router = createAppRouter(history);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const tree = (value: AuthContextValue) => (
-    <AuthContext value={value}>
-      <AppRouter router={router} />
-    </AuthContext>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext value={value}>
+        <AppRouter router={router} />
+      </AuthContext>
+    </QueryClientProvider>
   );
   const view = render(tree(auth(state, retry, login)));
   return {
@@ -75,6 +82,27 @@ function setup(
 }
 
 const authenticated: AuthState = { status: 'authenticated', user };
+
+/** The search the list screen receives, after validation. */
+function listSearch(router: ReturnType<typeof createAppRouter>) {
+  return router.state.matches.find((m) => m.routeId === '/_app/chamados')
+    ?.search;
+}
+
+const TICKET_ID = '6f1c1c8e-0000-4000-8000-0000000000c3';
+
+// The ticket list asks the API for its data; here it always finds none, and
+// the one ticket that can be opened is TICKET_ID.
+beforeEach(() => {
+  mockApi({
+    [`/api/v1/tickets/${TICKET_ID}`]: () =>
+      json({ ...makeTicket(1), id: TICKET_ID, title: 'Troca de senha' }),
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('router', () => {
   it('sends anonymous visitors to /login with the page they wanted', async () => {
@@ -220,5 +248,90 @@ describe('router', () => {
     const { router } = setup('/cadastro', { status: 'anonymous' });
     await screen.findByRole('heading', { name: 'Crie sua conta' });
     expect(router.state.location.pathname).toBe('/cadastro');
+  });
+
+  describe('tickets', () => {
+    it('/chamados asks for login and keeps the filters in the redirect', async () => {
+      const { router } = setup('/chamados?status=OPEN&q=rede', {
+        status: 'anonymous',
+      });
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      expect(router.state.location.pathname).toBe('/login');
+      expect(router.state.location.search).toEqual({
+        redirect: '/chamados?status=OPEN&q=rede',
+      });
+    });
+
+    it('/chamados/<id> asks for login and comes back to the ticket', async () => {
+      const login = vi.fn(async () => 'ok' as const);
+      const { router, change } = setup(
+        `/chamados/${TICKET_ID}`,
+        { status: 'anonymous' },
+        vi.fn(),
+        login,
+      );
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      expect(router.state.location.search).toEqual({
+        redirect: `/chamados/${TICKET_ID}`,
+      });
+      await change(authenticated);
+      await screen.findByRole('heading', { name: 'Troca de senha' });
+      expect(router.state.location.pathname).toBe(`/chamados/${TICKET_ID}`);
+    });
+
+    it('opens the list with the filters from the URL', async () => {
+      const { router } = setup(
+        '/chamados?status=IN_PROGRESS&assignee=me&q=rede&sort=priority&page=2',
+        authenticated,
+      );
+      await screen.findByRole('heading', { name: 'Meus chamados' });
+      expect(router.state.location.search).toEqual({
+        status: 'IN_PROGRESS',
+        assignee: 'me',
+        q: 'rede',
+        sort: 'priority',
+        page: 2,
+      });
+    });
+
+    it('keeps the filters after login', async () => {
+      const { router, change } = setup('/chamados?status=OPEN&q=rede', {
+        status: 'loading',
+      });
+      await change({ status: 'anonymous' });
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      await change(authenticated);
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(router.state.location.search).toEqual({
+        status: 'OPEN',
+        q: 'rede',
+      });
+    });
+
+    it('does not break on an invalid URL, and falls back to the defaults', async () => {
+      const { router } = setup(
+        '/chamados?status=XYZ&page=-3&sort=foo&assignee=',
+        authenticated,
+      );
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(listSearch(router)).toEqual({ sort: 'newest', page: 1 });
+    });
+
+    it('reads a q that looks like a number', async () => {
+      const { router } = setup('/chamados?q=4821', authenticated);
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(listSearch(router)).toEqual({
+        q: '4821',
+        sort: 'newest',
+        page: 1,
+      });
+    });
+
+    it('opens a ticket by its id', async () => {
+      setup(`/chamados/${TICKET_ID}`, authenticated);
+      expect(
+        await screen.findByRole('heading', { name: 'Troca de senha' }),
+      ).toBeInTheDocument();
+    });
   });
 });

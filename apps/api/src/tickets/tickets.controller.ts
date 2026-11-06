@@ -28,10 +28,12 @@ import {
   AssignTicketDto,
   CreateTicketDto,
   ListTicketsQueryDto,
+  TicketCountsQueryDto,
   UpdateTicketPriorityDto,
   UpdateTicketStatusDto,
 } from './dto/ticket-input.dto.js';
 import {
+  TicketCountsResponseDto,
   TicketListResponseDto,
   TicketResponseDto,
 } from './dto/ticket-response.dto.js';
@@ -63,6 +65,18 @@ export class TicketsController {
     return this.tickets.findAll(query, actor);
   }
 
+  // Declared before ':id', so that "counts" is not read as a ticket id.
+  @Get('counts')
+  @ApiOperation({
+    summary: 'Count the visible tickets by status',
+    description:
+      'Takes the same filters as the list, except status, sort, page and limit, and follows the same visibility rules.',
+  })
+  @ApiOkResponse({ type: TicketCountsResponseDto })
+  counts(@Query() query: TicketCountsQueryDto, @CurrentUser() actor: AuthUser) {
+    return this.tickets.countByStatus(query, actor);
+  }
+
   @Get(':id')
   @ApiOkResponse({ type: TicketResponseDto })
   @ApiNotFoundResponse({ description: 'Unknown or not visible to the caller' })
@@ -71,6 +85,46 @@ export class TicketsController {
     @CurrentUser() actor: AuthUser,
   ) {
     return this.tickets.findOne(id, actor);
+  }
+
+  @Patch(':id/take')
+  @Roles(Role.TECHNICIAN)
+  @ApiOperation({
+    summary: 'Take an unassigned OPEN ticket from the queue (technicians only)',
+    description:
+      'Sets the caller as the technician and moves the ticket to IN_PROGRESS. Only tickets of the technician areas can be taken.',
+  })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiForbiddenResponse({ description: 'Requires the TECHNICIAN role' })
+  @ApiNotFoundResponse({ description: 'Unknown or outside the caller areas' })
+  @ApiConflictResponse({
+    description: 'Not OPEN, or already taken (also by a simultaneous request)',
+  })
+  take(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser) {
+    return this.tickets.take(id, actor);
+  }
+
+  @Patch(':id/release')
+  @Roles(Role.TECHNICIAN)
+  @ApiOperation({
+    summary:
+      'Give an IN_PROGRESS or PENDING ticket back to the queue (assigned technician only)',
+    description: 'Removes the technician and moves the ticket back to OPEN.',
+  })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiForbiddenResponse({
+    description:
+      'Requires the TECHNICIAN role, and the ticket assigned to the caller',
+  })
+  @ApiNotFoundResponse({ description: 'Unknown or outside the caller areas' })
+  @ApiConflictResponse({
+    description: 'Not IN_PROGRESS or PENDING, or changed by another request',
+  })
+  release(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.tickets.release(id, actor);
   }
 
   @Patch(':id/assign')
@@ -92,7 +146,7 @@ export class TicketsController {
   @ApiOperation({
     summary: 'Move the ticket to another status',
     description:
-      'OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.',
+      'OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED, IN_PROGRESS → PENDING (waiting for the requester) and PENDING → IN_PROGRESS: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.',
   })
   @ApiOkResponse({ type: TicketResponseDto })
   @ApiForbiddenResponse({ description: 'Not allowed for this role or ticket' })

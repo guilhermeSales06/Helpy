@@ -112,6 +112,15 @@ A API limita tentativas por IP: login 10 por minuto e cadastro (`POST /api/v1/au
 
 O `POST /api/v1/auth/register` cria uma conta de cliente e já abre a sessão. Esta entrega **não adicionou migration** (conferido em `apps/api/prisma/migrations`): basta publicar a nova versão da API, sem mudança no banco. Contas criadas ali aparecem no banco de produção, que é de demonstração e pode ser limpo periodicamente.
 
+## 8. Chamados do técnico (duas migrations novas)
+
+Esta versão traz duas migrations em `apps/api/prisma/migrations`, aplicadas sozinhas no build de produção (`vercel-build` roda `prisma migrate deploy`). Não há passo manual.
+
+- `20261106153340_add_ticket_pending_status`: acrescenta o valor `PENDING` ao enum `TicketStatus` (`ALTER TYPE ... ADD VALUE`).
+- `20261106153500_add_ticket_number`: acrescenta a coluna `Ticket.number` (`SERIAL`, única). É o número que aparece na tela como `#<número>`.
+
+As duas são seguras com chamados que já existem: o novo valor do enum não muda nenhuma linha, e a coluna `number` é preenchida na própria migration, dando um número único a cada chamado antigo (os novos seguem a partir do maior). Nenhum dado é apagado ou reescrito além disso. Em um banco grande, a migration do `number` reescreve a tabela `Ticket` e a trava por alguns instantes; no banco de demonstração isso é imperceptível.
+
 ## Limitações conhecidas
 
 - **Certificado do banco:** a conexão é criptografada, mas o certificado do servidor não é validado. Para validar, seria preciso incluir o certificado CA do Supabase no projeto.
