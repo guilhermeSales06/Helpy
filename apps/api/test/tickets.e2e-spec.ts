@@ -157,7 +157,6 @@ describe('Tickets (e2e)', () => {
         category: { id: networkCategory, area: { name: 'Redes' } },
       });
       expect(JSON.stringify(body)).not.toContain('passwordHash');
-      expect(JSON.stringify(body)).not.toContain('email');
     });
 
     it('defaults to normal priority', async () => {
@@ -274,6 +273,37 @@ describe('Tickets (e2e)', () => {
         .expect(404);
 
       expect(invisible.body).toEqual(unknown.body);
+    });
+  });
+
+  describe('number', () => {
+    it('returns the ticket number and the client e-mail', async () => {
+      const { id } = await openTicket();
+
+      const { body } = await as(tokens.client)
+        .get(`${TICKETS}/${id}`)
+        .expect(200);
+
+      expect(Number.isInteger(body.number)).toBe(true);
+      expect(body.client).toEqual({
+        id: ids.client,
+        name: expect.any(String),
+        email: expect.any(String),
+      });
+    });
+
+    it('gives increasing numbers to new tickets', async () => {
+      const first = await openTicket();
+      const second = await openTicket();
+
+      const [a, b] = await Promise.all(
+        [first, second].map(async ({ id }) => {
+          const { body } = await as(tokens.admin).get(`${TICKETS}/${id}`);
+          return body.number as number;
+        }),
+      );
+
+      expect(b).toBeGreaterThan(a);
     });
   });
 

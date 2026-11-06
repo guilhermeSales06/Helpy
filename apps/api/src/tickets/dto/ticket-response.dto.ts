@@ -11,9 +11,20 @@ export class TicketPersonDto {
   name: string;
 }
 
+export class TicketClientDto extends TicketPersonDto {
+  @ApiProperty({ type: String })
+  email: string;
+}
+
 export class TicketResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
   id: string;
+
+  @ApiProperty({
+    type: Number,
+    description: 'Sequential number shown as #<number>',
+  })
+  number: number;
 
   @ApiProperty({ type: String })
   title: string;
@@ -27,8 +38,8 @@ export class TicketResponseDto {
   @ApiProperty({ enum: TicketPriority, enumName: 'TicketPriority' })
   priority: TicketPriority;
 
-  @ApiProperty({ type: TicketPersonDto })
-  client: TicketPersonDto;
+  @ApiProperty({ type: TicketClientDto })
+  client: TicketClientDto;
 
   @ApiProperty({ type: TicketPersonDto, nullable: true })
   technician: TicketPersonDto | null;

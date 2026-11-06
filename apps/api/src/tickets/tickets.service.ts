@@ -26,6 +26,7 @@ const person = { select: { id: true, name: true } };
 
 const ticketSelect = {
   id: true,
+  number: true,
   title: true,
   description: true,
   status: true,
@@ -33,7 +34,7 @@ const ticketSelect = {
   resolvedAt: true,
   createdAt: true,
   updatedAt: true,
-  client: person,
+  client: { select: { id: true, name: true, email: true } },
   technician: person,
   category: {
     select: {
