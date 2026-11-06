@@ -241,6 +241,13 @@ test.describe('tickets', () => {
       page.getByRole('complementary', { name: 'Propriedades' }),
     ).toContainText(technician.name);
     await expect(page.getByRole('button', { name: 'Assumir' })).toHaveCount(0);
+
+    // The ticket is still open, now with a technician: the admin may start it.
+    await page.getByRole('button', { name: 'Iniciar atendimento' }).click();
+    await expect(status(page, 'Em andamento')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Iniciar atendimento' }),
+    ).toHaveCount(0);
   });
 
   test('an unknown ticket id shows the not found page', async ({ page }) => {
