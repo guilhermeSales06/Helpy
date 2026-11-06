@@ -60,7 +60,7 @@ type Row = [string, User['role'], TicketStatus, Who, TicketAction[]];
 
 const rows: Row[] = [
   // Technician, ticket assigned to them
-  ['tech mine OPEN', 'TECHNICIAN', 'OPEN', 'me', ['changePriority']],
+  ['tech mine OPEN', 'TECHNICIAN', 'OPEN', 'me', ['start', 'changePriority']],
   [
     'tech mine IN_PROGRESS',
     'TECHNICIAN',
@@ -97,7 +97,15 @@ const rows: Row[] = [
   ['tech other CLOSED', 'TECHNICIAN', 'CLOSED', 'other', []],
   // Admin, with and without technician
   ...(['nobody', 'other'] as const).flatMap((who): Row[] => [
-    [`admin ${who} OPEN`, 'ADMIN', 'OPEN', who, ['assign', 'changePriority']],
+    [
+      `admin ${who} OPEN`,
+      'ADMIN',
+      'OPEN',
+      who,
+      who === 'nobody'
+        ? ['assign', 'changePriority']
+        : ['assign', 'start', 'changePriority'],
+    ],
     [
       `admin ${who} IN_PROGRESS`,
       'ADMIN',

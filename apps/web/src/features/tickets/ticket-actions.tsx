@@ -30,6 +30,7 @@ const MESSAGES: Record<Exclude<TicketMutationResult, 'ok'>, string> = {
 
 // The status each button asks for; the API only allows these moves.
 const STATUS_TARGET: Partial<Record<TicketAction, TicketStatus>> = {
+  start: 'IN_PROGRESS',
   pending: 'PENDING',
   resume: 'IN_PROGRESS',
   resolve: 'RESOLVED',
@@ -39,6 +40,7 @@ const STATUS_TARGET: Partial<Record<TicketAction, TicketStatus>> = {
 const LABELS: Record<TicketAction, string> = {
   take: 'Assumir',
   release: 'Devolver à fila',
+  start: 'Iniciar atendimento',
   pending: 'Marcar como pendente',
   resume: 'Retomar',
   resolve: 'Resolver',
@@ -327,7 +329,9 @@ export function TicketActions({
             onClick={() =>
               void run(() => changeStatus.mutateAsync({ id, status }))
             }
-            className={action === 'resolve' ? primary : secondary}
+            className={
+              action === 'start' || action === 'resolve' ? primary : secondary
+            }
           >
             {LABELS[action]}
           </button>

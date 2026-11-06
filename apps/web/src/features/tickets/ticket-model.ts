@@ -36,6 +36,7 @@ export function formatNumber(n: number): string {
 export type TicketAction =
   | 'take'
   | 'release'
+  | 'start'
   | 'pending'
   | 'resume'
   | 'resolve'
@@ -61,7 +62,7 @@ export function allowedActions(ticket: Ticket, user: User): TicketAction[] {
       ...(status === 'IN_PROGRESS' || status === 'PENDING'
         ? (['release'] as const)
         : []),
-      ...statusActions(status),
+      ...statusActions(status, ticket.technician !== null),
       'changePriority',
     ];
   }
@@ -71,7 +72,7 @@ export function allowedActions(ticket: Ticket, user: User): TicketAction[] {
       ...(status === 'OPEN' || status === 'IN_PROGRESS' || status === 'PENDING'
         ? (['assign'] as const)
         : []),
-      ...statusActions(status),
+      ...statusActions(status, ticket.technician !== null),
       'changePriority',
     ];
   }
@@ -79,8 +80,17 @@ export function allowedActions(ticket: Ticket, user: User): TicketAction[] {
   return [];
 }
 
-function statusActions(status: TicketStatus): TicketAction[] {
+/**
+ * The status moves open to this person. `start` needs a technician on the
+ * ticket (the API answers 409 otherwise), so only an assigned OPEN ticket has it.
+ */
+function statusActions(
+  status: TicketStatus,
+  hasTechnician: boolean,
+): TicketAction[] {
   switch (status) {
+    case 'OPEN':
+      return hasTechnician ? ['start'] : [];
     case 'IN_PROGRESS':
       return ['pending', 'resolve'];
     case 'PENDING':

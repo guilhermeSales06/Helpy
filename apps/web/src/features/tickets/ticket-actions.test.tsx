@@ -80,6 +80,18 @@ function ticket(overrides: Partial<Ticket> = {}) {
 const actionCases: [string, User, Partial<Ticket>, string[]][] = [
   ['technician, ticket in the queue', tech, {}, ['Assumir']],
   [
+    'technician, assigned to them and open',
+    tech,
+    { technician: MINE },
+    ['Iniciar atendimento', 'Alterar prioridade'],
+  ],
+  [
+    'technician, open ticket of another technician',
+    tech,
+    { technician: OTHER },
+    [],
+  ],
+  [
     'technician, assigned and in progress',
     tech,
     { status: 'IN_PROGRESS', technician: MINE },
@@ -109,6 +121,12 @@ const actionCases: [string, User, Partial<Ticket>, string[]][] = [
     [],
   ],
   ['admin, open ticket', admin, {}, ['Atribuir', 'Alterar prioridade']],
+  [
+    'admin, open ticket with a technician',
+    admin,
+    { technician: OTHER },
+    ['Atribuir', 'Iniciar atendimento', 'Alterar prioridade'],
+  ],
   [
     'admin, ticket in progress',
     admin,
@@ -285,6 +303,7 @@ describe('ticket actions', () => {
   });
 
   it.each([
+    ['Iniciar atendimento', 'OPEN', 'IN_PROGRESS', 'Em andamento'],
     ['Marcar como pendente', 'IN_PROGRESS', 'PENDING', 'Pendente'],
     ['Retomar', 'PENDING', 'IN_PROGRESS', 'Em andamento'],
     ['Resolver', 'IN_PROGRESS', 'RESOLVED', 'Resolvido'],
