@@ -76,6 +76,14 @@ function setup(
 
 const authenticated: AuthState = { status: 'authenticated', user };
 
+/** The search the list screen receives, after validation. */
+function listSearch(router: ReturnType<typeof createAppRouter>) {
+  return router.state.matches.find((m) => m.routeId === '/_app/chamados')
+    ?.search;
+}
+
+const TICKET_ID = '6f1c1c8e-0000-4000-8000-0000000000c3';
+
 describe('router', () => {
   it('sends anonymous visitors to /login with the page they wanted', async () => {
     const { router } = setup('/', { status: 'anonymous' });
@@ -220,5 +228,90 @@ describe('router', () => {
     const { router } = setup('/cadastro', { status: 'anonymous' });
     await screen.findByRole('heading', { name: 'Crie sua conta' });
     expect(router.state.location.pathname).toBe('/cadastro');
+  });
+
+  describe('tickets', () => {
+    it('/chamados asks for login and keeps the filters in the redirect', async () => {
+      const { router } = setup('/chamados?status=OPEN&q=rede', {
+        status: 'anonymous',
+      });
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      expect(router.state.location.pathname).toBe('/login');
+      expect(router.state.location.search).toEqual({
+        redirect: '/chamados?status=OPEN&q=rede',
+      });
+    });
+
+    it('/chamados/<id> asks for login and comes back to the ticket', async () => {
+      const login = vi.fn(async () => 'ok' as const);
+      const { router, change } = setup(
+        `/chamados/${TICKET_ID}`,
+        { status: 'anonymous' },
+        vi.fn(),
+        login,
+      );
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      expect(router.state.location.search).toEqual({
+        redirect: `/chamados/${TICKET_ID}`,
+      });
+      await change(authenticated);
+      await screen.findByRole('heading', { name: 'Chamado' });
+      expect(router.state.location.pathname).toBe(`/chamados/${TICKET_ID}`);
+    });
+
+    it('opens the list with the filters from the URL', async () => {
+      const { router } = setup(
+        '/chamados?status=IN_PROGRESS&assignee=me&q=rede&sort=priority&page=2',
+        authenticated,
+      );
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(router.state.location.search).toEqual({
+        status: 'IN_PROGRESS',
+        assignee: 'me',
+        q: 'rede',
+        sort: 'priority',
+        page: 2,
+      });
+    });
+
+    it('keeps the filters after login', async () => {
+      const { router, change } = setup('/chamados?status=OPEN&q=rede', {
+        status: 'loading',
+      });
+      await change({ status: 'anonymous' });
+      await screen.findByRole('heading', { name: 'Bem-vindo de volta' });
+      await change(authenticated);
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(router.state.location.search).toEqual({
+        status: 'OPEN',
+        q: 'rede',
+      });
+    });
+
+    it('does not break on an invalid URL, and falls back to the defaults', async () => {
+      const { router } = setup(
+        '/chamados?status=XYZ&page=-3&sort=foo&assignee=',
+        authenticated,
+      );
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(listSearch(router)).toEqual({ sort: 'newest', page: 1 });
+    });
+
+    it('reads a q that looks like a number', async () => {
+      const { router } = setup('/chamados?q=4821', authenticated);
+      await screen.findByRole('heading', { name: 'Chamados' });
+      expect(listSearch(router)).toEqual({
+        q: '4821',
+        sort: 'newest',
+        page: 1,
+      });
+    });
+
+    it('opens a ticket by its id', async () => {
+      setup(`/chamados/${TICKET_ID}`, authenticated);
+      expect(
+        await screen.findByRole('heading', { name: 'Chamado' }),
+      ).toBeInTheDocument();
+    });
   });
 });

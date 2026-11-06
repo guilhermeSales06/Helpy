@@ -75,6 +75,7 @@ export function AppShell() {
             <Link
               key={item.label}
               to={item.to}
+              search={item.search}
               activeOptions={{ exact: true }}
               title={item.label}
               aria-label={item.label}
