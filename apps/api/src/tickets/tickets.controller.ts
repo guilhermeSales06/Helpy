@@ -87,6 +87,23 @@ export class TicketsController {
     return this.tickets.findOne(id, actor);
   }
 
+  @Patch(':id/take')
+  @Roles(Role.TECHNICIAN)
+  @ApiOperation({
+    summary: 'Take an unassigned OPEN ticket from the queue (technicians only)',
+    description:
+      'Sets the caller as the technician and moves the ticket to IN_PROGRESS. Only tickets of the technician areas can be taken.',
+  })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiForbiddenResponse({ description: 'Requires the TECHNICIAN role' })
+  @ApiNotFoundResponse({ description: 'Unknown or outside the caller areas' })
+  @ApiConflictResponse({
+    description: 'Not OPEN, or already taken (also by a simultaneous request)',
+  })
+  take(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser) {
+    return this.tickets.take(id, actor);
+  }
+
   @Patch(':id/assign')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Assign or reassign a technician (admins only)' })

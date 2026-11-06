@@ -73,6 +73,7 @@ Um chamado que o usuário não pode ver responde 404, como se não existisse.
 **Quem faz o quê**
 
 - **Abrir:** cliente.
+- **Assumir:** técnico, um chamado `OPEN` sem técnico de uma das suas áreas (`PATCH /tickets/:id/take`). Grava ele como técnico e muda para `IN_PROGRESS` numa transação, com os eventos `ASSIGNED` e `STATUS_CHANGED`. Chamado fora das suas áreas responde 404; já assumido (inclusive por quem assumiu um instante antes) ou fora de `OPEN`, 409, e nunca fica com dois técnicos. Admin e cliente recebem 403: o admin atribui, não atende.
 - **Atribuir ou reatribuir técnico:** admin. Só com o chamado em `OPEN` ou `IN_PROGRESS`.
 - **Mudar prioridade:** admin ou técnico atribuído. Não vale para chamados `CLOSED`.
 

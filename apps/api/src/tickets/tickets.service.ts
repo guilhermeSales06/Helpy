@@ -139,6 +139,41 @@ export class TicketsService {
     return ticket;
   }
 
+  // Technicians take from the queue of their areas. A ticket that someone else
+  // took meanwhile is still in the queue the technician was looking at, so it
+  // answers 409 (not 404) as long as it belongs to one of his areas.
+  async take(id: string, actor: AuthUser) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: {
+        AND: [{ id }, { OR: [this.visibleTo(actor), this.inAreasOf(actor)] }],
+      },
+      select: ticketSelect,
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (ticket.technician) {
+      throw new ConflictException('Ticket already has a technician');
+    }
+    if (ticket.status !== TicketStatus.OPEN) {
+      throw new ConflictException(
+        `Cannot take a ${ticket.status.toLowerCase()} ticket`,
+      );
+    }
+
+    return this.applyChange(
+      ticket,
+      actor,
+      { technicianId: actor.id, status: TicketStatus.IN_PROGRESS },
+      [
+        { type: TicketEventType.ASSIGNED, from: null, to: actor.id },
+        {
+          type: TicketEventType.STATUS_CHANGED,
+          from: TicketStatus.OPEN,
+          to: TicketStatus.IN_PROGRESS,
+        },
+      ],
+    );
+  }
+
   async assign(id: string, technicianId: string, actor: AuthUser) {
     const ticket = await this.findOne(id, actor);
     if (
@@ -273,6 +308,12 @@ export class TicketsService {
           ],
         };
     }
+  }
+
+  private inAreasOf(actor: AuthUser): Prisma.TicketWhereInput {
+    return {
+      category: { area: { technicians: { some: { userId: actor.id } } } },
+    };
   }
 
   // Technicians can see their area's unassigned queue, but only change their own tickets.
