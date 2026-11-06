@@ -10,7 +10,14 @@ const LEVEL: Record<TicketPriority, number> = {
 const BAR_HEIGHTS = [4, 7, 10, 13];
 
 /** Signal bars plus the label; the label carries the meaning for assistive tech. */
-export function PriorityIndicator({ priority }: { priority: TicketPriority }) {
+export function PriorityIndicator({
+  priority,
+  prefix,
+}: {
+  priority: TicketPriority;
+  /** A word before the label, e.g. "Prioridade". */
+  prefix?: string;
+}) {
   const color = priority === 'URGENT' ? '#C8361F' : '#1C1A18';
   return (
     <span
@@ -29,6 +36,7 @@ export function PriorityIndicator({ priority }: { priority: TicketPriority }) {
           />
         ))}
       </span>
+      {prefix ? <span>{prefix}</span> : null}
       {PRIORITY_LABELS[priority]}
     </span>
   );

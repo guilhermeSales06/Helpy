@@ -96,7 +96,10 @@ export const ZERO_COUNTS = {
   CLOSED: 0,
 };
 
-type Handler = (url: URL, request: Request) => Response | Promise<Response>;
+export type Handler = (
+  url: URL,
+  request: Request,
+) => Response | Promise<Response>;
 
 /** Answers the API with empty data; `routes` replaces an answer by pathname. */
 export function mockApi(routes: Record<string, Handler> = {}) {
