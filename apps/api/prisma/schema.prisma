@@ -20,6 +20,7 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+  PENDING
 }
 
 enum TicketPriority {

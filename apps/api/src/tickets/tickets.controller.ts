@@ -92,7 +92,7 @@ export class TicketsController {
   @ApiOperation({
     summary: 'Move the ticket to another status',
     description:
-      'OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.',
+      'OPEN → IN_PROGRESS and IN_PROGRESS → RESOLVED, IN_PROGRESS → PENDING (waiting for the requester) and PENDING → IN_PROGRESS: assigned technician or admin. RESOLVED → CLOSED: client or admin. RESOLVED → IN_PROGRESS (reopen): client, assigned technician or admin.',
   })
   @ApiOkResponse({ type: TicketResponseDto })
   @ApiForbiddenResponse({ description: 'Not allowed for this role or ticket' })

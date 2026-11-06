@@ -1,6 +1,6 @@
 import { Role, TicketStatus } from '../generated/prisma/enums.js';
 
-const { OPEN, IN_PROGRESS, RESOLVED, CLOSED } = TicketStatus;
+const { OPEN, IN_PROGRESS, PENDING, RESOLVED, CLOSED } = TicketStatus;
 const { ADMIN, TECHNICIAN, CLIENT } = Role;
 
 // Closing is the client's confirmation that the problem is solved. Admins can
@@ -9,6 +9,8 @@ const { ADMIN, TECHNICIAN, CLIENT } = Role;
 const TRANSITIONS: { from: TicketStatus; to: TicketStatus; roles: Role[] }[] = [
   { from: OPEN, to: IN_PROGRESS, roles: [TECHNICIAN, ADMIN] },
   { from: IN_PROGRESS, to: RESOLVED, roles: [TECHNICIAN, ADMIN] },
+  { from: IN_PROGRESS, to: PENDING, roles: [TECHNICIAN, ADMIN] },
+  { from: PENDING, to: IN_PROGRESS, roles: [TECHNICIAN, ADMIN] },
   { from: RESOLVED, to: CLOSED, roles: [CLIENT, ADMIN] },
   { from: RESOLVED, to: IN_PROGRESS, roles: [CLIENT, TECHNICIAN, ADMIN] },
 ];

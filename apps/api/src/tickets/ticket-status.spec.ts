@@ -1,7 +1,7 @@
 import { Role, TicketStatus } from '../generated/prisma/enums.js';
 import { checkTransition, TransitionCheck } from './ticket-status.js';
 
-const { OPEN, IN_PROGRESS, RESOLVED, CLOSED } = TicketStatus;
+const { OPEN, IN_PROGRESS, PENDING, RESOLVED, CLOSED } = TicketStatus;
 const { ADMIN, TECHNICIAN, CLIENT } = Role;
 
 describe('checkTransition', () => {
@@ -14,6 +14,10 @@ describe('checkTransition', () => {
     [OPEN, IN_PROGRESS, ADMIN],
     [IN_PROGRESS, RESOLVED, TECHNICIAN],
     [IN_PROGRESS, RESOLVED, ADMIN],
+    [IN_PROGRESS, PENDING, TECHNICIAN],
+    [IN_PROGRESS, PENDING, ADMIN],
+    [PENDING, IN_PROGRESS, TECHNICIAN],
+    [PENDING, IN_PROGRESS, ADMIN],
     [RESOLVED, CLOSED, CLIENT],
     [RESOLVED, CLOSED, ADMIN],
     [RESOLVED, IN_PROGRESS, CLIENT],
@@ -46,6 +50,25 @@ describe('checkTransition', () => {
     for (const to of statuses) {
       for (const role of roles) {
         expect(checkTransition(CLOSED, to, role)).toBe('invalid');
+      }
+    }
+  });
+
+  it('lets a technician or admin move IN_PROGRESS to PENDING and back', () => {
+    for (const role of [TECHNICIAN, ADMIN]) {
+      expect(checkTransition(IN_PROGRESS, PENDING, role)).toBe('allowed');
+      expect(checkTransition(PENDING, IN_PROGRESS, role)).toBe('allowed');
+    }
+  });
+
+  it('does not let a client move IN_PROGRESS to PENDING', () => {
+    expect(checkTransition(IN_PROGRESS, PENDING, CLIENT)).toBe('forbidden');
+  });
+
+  it('does not allow PENDING to RESOLVED, CLOSED or OPEN', () => {
+    for (const to of [RESOLVED, CLOSED, OPEN]) {
+      for (const role of roles) {
+        expect(checkTransition(PENDING, to, role)).toBe('invalid');
       }
     }
   });
