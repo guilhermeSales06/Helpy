@@ -5,7 +5,7 @@ import { PRIORITY_LABELS, type TicketPriority } from './ticket-model';
 import { categoriesQuery, techniciansQuery } from './ticket-queries';
 import { SORTS, type Sort, type TicketSearch } from './ticket-search';
 
-export const SORT_LABELS: Record<Sort, string> = {
+const SORT_LABELS: Record<Sort, string> = {
   newest: 'Mais recentes',
   updated: 'Atualizados recentemente',
   oldest: 'Mais antigos',

@@ -49,7 +49,7 @@ const LABELS: Record<TicketAction, string> = {
   changePriority: 'Alterar prioridade',
 };
 
-const PRIORITIES: TicketPriority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
+const PRIORITIES = Object.keys(PRIORITY_LABELS) as TicketPriority[];
 
 const buttonBase =
   'inline-flex h-[38px] items-center gap-1.5 rounded-full px-3.5 text-[13.5px] font-semibold whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-60';

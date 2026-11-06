@@ -10,7 +10,7 @@ import {
 export type Sort = 'newest' | 'updated' | 'oldest' | 'priority';
 
 /** Query string the API accepts on `GET /api/v1/tickets`. */
-export type ApiTicketQuery = NonNullable<
+type ApiTicketQuery = NonNullable<
   operations['TicketsController_findAll']['parameters']['query']
 >;
 
