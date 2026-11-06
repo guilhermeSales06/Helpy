@@ -72,13 +72,13 @@ export function json(body: unknown, status = 200) {
 }
 
 export function listBody(
-  tickets: Ticket[],
+  items: unknown[],
   meta: { page?: number; limit?: number; total?: number } = {},
 ) {
   const limit = meta.limit ?? 20;
-  const total = meta.total ?? tickets.length;
+  const total = meta.total ?? items.length;
   return {
-    data: tickets,
+    data: items,
     meta: {
       page: meta.page ?? 1,
       limit,

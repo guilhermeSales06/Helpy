@@ -7,13 +7,13 @@ import { StatusBadge } from './status-badge';
 import { formatNumber, type Ticket } from './ticket-model';
 
 const COLUMNS = [
-  { label: 'ID', width: 'w-[76px]' },
+  { label: 'ID', width: 'w-[64px]' },
   { label: 'Assunto', width: '' },
-  { label: 'Solicitante', width: 'w-[210px]' },
-  { label: 'Responsável', width: 'w-[180px]' },
-  { label: 'Prioridade', width: 'w-[120px]' },
-  { label: 'Status', width: 'w-[150px]' },
-  { label: 'Atualizado', width: 'w-[110px]' },
+  { label: 'Solicitante', width: 'w-[190px]' },
+  { label: 'Responsável', width: 'w-[150px]' },
+  { label: 'Prioridade', width: 'w-[104px]' },
+  { label: 'Status', width: 'w-[136px]' },
+  { label: 'Atualizado', width: 'w-[92px]' },
 ];
 
 function Avatar({ name, size }: { name: string; size: 'sm' | 'md' }) {
@@ -49,10 +49,10 @@ function Row({ ticket }: { ticket: Ticket }) {
       onClick={open}
       className="cursor-pointer border-b border-[#F2EFEC] last:border-b-0 hover:bg-[#FAF7F4] focus-within:bg-[#FAF7F4]"
     >
-      <td className="px-4 py-3 font-display text-[13px] font-medium text-secondary">
+      <td className="px-4 py-2.5 font-display text-[13px] font-medium text-secondary">
         {formatNumber(ticket.number)}
       </td>
-      <td className="max-w-0 px-2 py-3">
+      <td className="max-w-0 px-2 py-2.5">
         <Link
           to="/chamados/$ticketId"
           params={{ ticketId: ticket.id }}
@@ -64,7 +64,7 @@ function Row({ ticket }: { ticket: Ticket }) {
           {category.area.name} · {category.name}
         </span>
       </td>
-      <td className="max-w-0 px-2 py-3">
+      <td className="max-w-0 px-2 py-2.5">
         <span className="flex items-center gap-2">
           <Avatar name={client.name} size="md" />
           <span className="flex min-w-0 flex-col">
@@ -73,7 +73,7 @@ function Row({ ticket }: { ticket: Ticket }) {
           </span>
         </span>
       </td>
-      <td className="max-w-0 px-2 py-3">
+      <td className="max-w-0 px-2 py-2.5">
         {technician ? (
           <span className="flex items-center gap-2">
             <Avatar name={technician.name} size="sm" />
@@ -91,13 +91,13 @@ function Row({ ticket }: { ticket: Ticket }) {
           </span>
         )}
       </td>
-      <td className="px-2 py-3">
+      <td className="px-2 py-2.5">
         <PriorityIndicator priority={ticket.priority} />
       </td>
-      <td className="px-2 py-3">
+      <td className="px-2 py-2.5">
         <StatusBadge status={ticket.status} />
       </td>
-      <td className="px-2 py-3 pr-4 text-[12.5px] whitespace-nowrap text-muted">
+      <td className="px-2 py-2.5 pr-4 text-[12.5px] whitespace-nowrap text-muted">
         {formatRelative(ticket.updatedAt)}
       </td>
     </tr>
@@ -107,8 +107,8 @@ function Row({ ticket }: { ticket: Ticket }) {
 /** The table scrolls inside its card, so the page itself never scrolls sideways. */
 export function TicketTable({ tickets }: { tickets: Ticket[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1000px] table-fixed border-collapse text-left">
+    <div className="relative overflow-x-auto">
+      <table className="w-full min-w-[968px] table-fixed border-collapse text-left">
         <caption className="sr-only">Chamados</caption>
         <thead>
           <tr className="border-b border-line bg-surface">

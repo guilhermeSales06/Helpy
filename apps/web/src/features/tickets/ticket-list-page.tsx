@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useAuth, type User } from '../auth/use-auth';
-import { ticketListQuery } from './ticket-queries';
+import { TicketFilters } from './ticket-filters';
+import { ticketCountsQuery, ticketListQuery } from './ticket-queries';
 import { restrictSearch, type TicketSearch } from './ticket-search';
+import { TAB_PANEL_ID, TicketStatusTabs, tabId } from './ticket-status-tabs';
 import { TicketTable, TicketTableSkeleton } from './ticket-table';
 
 const route = getRouteApi('/_app/chamados');
@@ -60,6 +62,10 @@ function TicketList({ user }: { user: User }) {
     // Keep the last page on screen while the next one loads.
     placeholderData: keepPreviousData,
   });
+  const counts = useQuery({
+    ...ticketCountsQuery(search, user.id),
+    placeholderData: keepPreviousData,
+  });
   const result = list.data;
   const settled = result !== undefined && !list.isPlaceholderData;
 
@@ -76,6 +82,24 @@ function TicketList({ user }: { user: User }) {
     });
   }, [pastTheEnd, lastPage, navigate]);
 
+  // Any change to the filters goes back to the first page and replaces the
+  // entry, so Back does not walk through every filter.
+  function update(patch: Partial<TicketSearch>) {
+    void navigate({
+      search: (prev) => ({ ...prev, ...patch, page: 1 }),
+      replace: true,
+    });
+  }
+
+  function clearFilters() {
+    update({
+      status: undefined,
+      priority: undefined,
+      category: undefined,
+      assignee: undefined,
+    });
+  }
+
   function goToPage(page: number) {
     void navigate({ search: (prev) => ({ ...prev, page }) });
   }
@@ -83,13 +107,6 @@ function TicketList({ user }: { user: User }) {
   function clearAll() {
     void navigate({
       search: (prev) => ({ sort: prev.sort, page: 1 }),
-      replace: true,
-    });
-  }
-
-  function clearQuery() {
-    void navigate({
-      search: (prev) => ({ ...prev, q: undefined, page: 1 }),
       replace: true,
     });
   }
@@ -210,7 +227,7 @@ function TicketList({ user }: { user: User }) {
             <span className="truncate">Busca: “{search.q}”</span>
             <button
               type="button"
-              onClick={clearQuery}
+              onClick={() => update({ q: undefined })}
               aria-label="Limpar busca"
               className="flex size-[18px] flex-none items-center justify-center rounded-full bg-line-strong outline-none focus-visible:ring-4 focus-visible:ring-focus"
             >
@@ -224,8 +241,25 @@ function TicketList({ user }: { user: User }) {
         aria-label="Lista de chamados"
         className="overflow-hidden rounded-[20px] border border-line bg-white"
       >
-        {body}
-        {pagination}
+        <TicketStatusTabs
+          status={search.status}
+          counts={counts.data}
+          onSelect={(status) => update({ status })}
+        />
+        <TicketFilters
+          search={search}
+          role={user.role}
+          onChange={update}
+          onClear={clearFilters}
+        />
+        <div
+          role="tabpanel"
+          id={TAB_PANEL_ID}
+          aria-labelledby={tabId(search.status)}
+        >
+          {body}
+          {pagination}
+        </div>
       </section>
     </div>
   );

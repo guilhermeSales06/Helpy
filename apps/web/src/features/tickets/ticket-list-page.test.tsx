@@ -11,6 +11,7 @@ import {
   mockApi,
   renderApp,
   ticketId,
+  ZERO_COUNTS,
 } from '../../test/ticket-test-utils';
 
 afterEach(() => {
@@ -317,5 +318,136 @@ describe('ticket list page', () => {
     await renderApp(`/chamados?assignee=${TECH_ID}`, makeUser('ADMIN'));
     await screen.findByText('Chamado número 1');
     expect(api.lastList()!.searchParams.get('technicianId')).toBe(TECH_ID);
+  });
+
+  describe('status tabs', () => {
+    const counts = {
+      total: 30,
+      byStatus: {
+        OPEN: 12,
+        IN_PROGRESS: 8,
+        PENDING: 3,
+        RESOLVED: 5,
+        CLOSED: 2,
+      },
+    };
+
+    it('shows the tabs Todos, Aberto, Em andamento, Pendente, Resolvido, Fechado with the counts from the API', async () => {
+      mockApi({ '/api/v1/tickets/counts': () => json(counts) });
+      await renderApp('/chamados', makeUser('ADMIN'));
+      const tablist = await screen.findByRole('tablist');
+      for (const name of [
+        'Todos 30',
+        'Aberto 12',
+        'Em andamento 8',
+        'Pendente 3',
+        'Resolvido 5',
+        'Fechado 2',
+      ]) {
+        expect(
+          await within(tablist).findByRole('tab', { name }),
+        ).toBeInTheDocument();
+      }
+      expect(within(tablist).getAllByRole('tab')).toHaveLength(6);
+      expect(
+        within(tablist).getByRole('tab', { name: 'Todos 30' }),
+      ).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('treats a counts answer without byStatus as zeros', async () => {
+      mockApi({ '/api/v1/tickets/counts': () => json({ total: 7 }) });
+      await renderApp('/chamados', makeUser('ADMIN'));
+      expect(
+        await screen.findByRole('tab', { name: 'Todos 7' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Aberto 0' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('tab', { name: 'Fechado 0' }),
+      ).toBeInTheDocument();
+    });
+
+    it('still shows the tabs, without numbers, when the counts fail', async () => {
+      mockApi({
+        '/api/v1/tickets/counts': () => json({ message: 'boom' }, 500),
+        '/api/v1/tickets': () => json(listBody([makeTicket(1)])),
+      });
+      await renderApp('/chamados', makeUser('ADMIN'));
+      expect(await screen.findByText('Chamado número 1')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Aberto' })).toBeInTheDocument();
+    });
+
+    it('clicking a tab sets status in the URL and resets page to 1', async () => {
+      const api = mockApi({
+        '/api/v1/tickets/counts': () =>
+          json({ total: 30, byStatus: { ...ZERO_COUNTS, RESOLVED: 5 } }),
+      });
+      const { router } = await renderApp(
+        '/chamados?priority=HIGH&page=3',
+        makeUser('ADMIN'),
+      );
+      const before = router.history.length;
+      await userEvent.click(
+        await screen.findByRole('tab', { name: /^Resolvido/ }),
+      );
+      await waitFor(() =>
+        expect(router.state.location.search).toEqual({
+          priority: 'HIGH',
+          status: 'RESOLVED',
+        }),
+      );
+      expect(screen.getByRole('tab', { name: /^Resolvido/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await waitFor(() => {
+        const list = api.lastList()!;
+        expect(list.searchParams.get('status')).toBe('RESOLVED');
+        expect(list.searchParams.get('page')).toBe('1');
+      });
+      expect(router.history.length).toBe(before);
+
+      await userEvent.click(screen.getByRole('tab', { name: /^Todos/ }));
+      await waitFor(() =>
+        expect(router.state.location.search).toEqual({ priority: 'HIGH' }),
+      );
+    });
+
+    it('moves between the tabs with the arrow keys', async () => {
+      const { router } = await renderApp('/chamados', makeUser('ADMIN'));
+      const all = await screen.findByRole('tab', { name: /^Todos/ });
+      expect(all).toHaveAttribute('tabindex', '0');
+      expect(screen.getByRole('tab', { name: /^Aberto/ })).toHaveAttribute(
+        'tabindex',
+        '-1',
+      );
+      all.focus();
+      await userEvent.keyboard('{ArrowRight}');
+      await waitFor(() =>
+        expect(router.state.location.search).toEqual({ status: 'OPEN' }),
+      );
+      expect(screen.getByRole('tab', { name: /^Aberto/ })).toHaveFocus();
+      await userEvent.keyboard('{End}');
+      await waitFor(() =>
+        expect(router.state.location.search).toEqual({ status: 'CLOSED' }),
+      );
+      await userEvent.keyboard('{ArrowRight}');
+      await waitFor(() => expect(router.state.location.search).toEqual({}));
+      expect(screen.getByRole('tab', { name: /^Todos/ })).toHaveFocus();
+    });
+
+    it('asks for the counts with the filters but without status, sort and page', async () => {
+      const api = mockApi();
+      await renderApp(
+        '/chamados?status=OPEN&priority=HIGH&q=vpn&sort=oldest&page=2',
+        makeUser('ADMIN'),
+      );
+      await screen.findByRole('tablist');
+      await waitFor(() =>
+        expect(api.to('/api/v1/tickets/counts')).toHaveLength(1),
+      );
+      expect(
+        Object.fromEntries(api.to('/api/v1/tickets/counts')[0]!.searchParams),
+      ).toEqual({ priority: 'HIGH', q: 'vpn' });
+    });
   });
 });

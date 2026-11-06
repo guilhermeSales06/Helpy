@@ -77,6 +77,39 @@ export function ticketCountsQuery(search: TicketSearch, me: string) {
   });
 }
 
+const FIVE_MINUTES = 5 * 60_000;
+
+/** The categories a ticket can have, for the filter menu. */
+export function categoriesQuery() {
+  return queryOptions({
+    queryKey: ['categories'] as const,
+    staleTime: FIVE_MINUTES,
+    queryFn: async () => {
+      const { data, response } = await api.GET('/api/v1/categories', {});
+      if (!data) throw new TicketRequestError(response.status);
+      return data;
+    },
+  });
+}
+
+/**
+ * The active technicians, for the admin's "Responsável" filter. The users
+ * endpoint answers admins only, and takes at most 100 per page.
+ */
+export function techniciansQuery() {
+  return queryOptions({
+    queryKey: ['users', 'technicians'] as const,
+    staleTime: FIVE_MINUTES,
+    queryFn: async () => {
+      const { data, response } = await api.GET('/api/v1/users', {
+        params: { query: { role: 'TECHNICIAN', active: true, limit: 100 } },
+      });
+      if (!data) throw new TicketRequestError(response.status);
+      return data.data;
+    },
+  });
+}
+
 export function ticketQuery(id: string) {
   return queryOptions({
     queryKey: keys.detail(id),
